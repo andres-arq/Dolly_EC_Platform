@@ -1,0 +1,294 @@
+# =============================================================================
+# pipeline.py
+# Proyecto: Dolly Chile — App de Gestión
+# Propósito: Funciones centrales que alimentan la app Streamlit.
+#            Extraídas de los notebooks para ser reutilizables.
+# =============================================================================
+
+import os
+import json
+import math
+import pandas as pd
+import numpy as np
+from datetime import datetime
+
+# =============================================================================
+# PARÁMETROS GLOBALES
+# =============================================================================
+
+RUTA_BASE = os.path.dirname(os.path.abspath(__file__))
+
+PARAMS = {
+    "ticket_umbral_flete_gratis":  50_000,
+    "ticket_promedio_referencia":  55_993,
+    "margen_online":               0.15,
+    "carrito_horas_min":           2,
+    "carrito_horas_max":           24,
+    "carrito_monto_minimo":        5_000,
+    "carrito_cooldown_horas":      72,
+    "periodo_analisis_dias":       1000,
+}
+
+UMBRALES = {
+    "recencia_activo":    60,
+    "recencia_riesgo":    180,
+    "recencia_en_riesgo": 300,
+    "monto_alto":         100_000,
+    "monto_medio":        50_000,
+}
+
+# =============================================================================
+# CARGA DE DATOS
+# =============================================================================
+
+def cargar_csv_vtex(ruta=None):
+    """
+    Carga y procesa el CSV de VTEX.
+    Parsea checkouttag, fechas y montos.
+    """
+    if ruta is None:
+        ruta = os.path.join(RUTA_BASE, "Dolly_Carritos_VTEX.csv")
+
+    df = pd.read_csv(ruta, sep=';', encoding='utf-8-sig', low_memory=False)
+
+    def extraer_paso(val):
+        if pd.isna(val):
+            return "Desconocido"
+        try:
+            limpio = str(val).replace('""', '"').strip()
+            if limpio.startswith('"') and limpio.endswith('"'):
+                limpio = limpio[1:-1]
+            parsed    = json.loads(limpio)
+            resultado = parsed.get("DisplayValue")
+            if resultado and resultado != "null":
+                return str(resultado)
+            return "Desconocido"
+        except:
+            return "Desconocido"
+
+    df["paso_abandono"]     = df["checkouttag"].apply(extraer_paso)
+    df["rclastsessiondate"] = pd.to_datetime(df["rclastsessiondate"], utc=True, errors="coerce")
+    df["rclastcartvalue"]   = pd.to_numeric(df["rclastcartvalue"], errors="coerce").fillna(0)
+
+    return df
+
+
+def cargar_perfil_clientes():
+    """Carga el CSV de clientes segmentados."""
+    ruta = os.path.join(RUTA_BASE, "clientes_con_perfil.csv")
+    if os.path.exists(ruta):
+        return pd.read_csv(ruta)
+    return pd.DataFrame()
+
+
+def cargar_buyer_enrichment():
+    """Carga el CSV de enriquecimiento de clientes."""
+    ruta = os.path.join(RUTA_BASE, "dolly_buyer_enrichment.csv")
+    if os.path.exists(ruta):
+        return pd.read_csv(ruta)
+    return pd.DataFrame()
+
+
+def cargar_puntos_blueexpress():
+    """
+    Carga puntos Blue Express desde CSV si existe,
+    o retorna el MOCK por defecto.
+    """
+    ruta = os.path.join(RUTA_BASE, "blue_express_puntos.csv")
+    if os.path.exists(ruta):
+        return pd.read_csv(ruta)
+
+    # MOCK por defecto
+    puntos = [
+        {"nombre": "Blue Express Copec Panamericana",    "ciudad": "Puerto Montt", "region": "Los Lagos",    "latitud": -41.4693, "longitud": -72.9424, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Angelmo",         "ciudad": "Puerto Montt", "region": "Los Lagos",    "latitud": -41.4751, "longitud": -72.9562, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Alerce",          "ciudad": "Puerto Montt", "region": "Los Lagos",    "latitud": -41.4123, "longitud": -72.9187, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Osorno Centro",   "ciudad": "Osorno",       "region": "Los Lagos",    "latitud": -40.5740, "longitud": -73.1343, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Osorno Norte",    "ciudad": "Osorno",       "region": "Los Lagos",    "latitud": -40.5512, "longitud": -73.1289, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Castro Centro",   "ciudad": "Castro",       "region": "Los Lagos",    "latitud": -42.4782, "longitud": -73.7606, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Calbuco",         "ciudad": "Calbuco",      "region": "Los Lagos",    "latitud": -41.7726, "longitud": -73.1310, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Valdivia Centro", "ciudad": "Valdivia",     "region": "Los Ríos",     "latitud": -39.8142, "longitud": -73.2459, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Temuco Centro",   "ciudad": "Temuco",       "region": "La Araucanía", "latitud": -38.7359, "longitud": -72.5904, "estado": "Abierto 24/7"},
+        {"nombre": "Blue Express Copec Concepción",      "ciudad": "Concepción",   "region": "Biobío",       "latitud": -36.8270, "longitud": -73.0498, "estado": "Abierto 24/7"},
+    ]
+    return pd.DataFrame(puntos)
+
+
+def cargar_plantillas():
+    """Carga las plantillas de correo por segmento."""
+    ruta = os.path.join(RUTA_BASE, "plantillas_campanas.json")
+    if os.path.exists(ruta):
+        with open(ruta, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    # Plantillas por defecto
+    segmentos = [
+        "Cliente VIP", "Cliente Activo", "Con Carrito",
+        "Alto Valor Reciente", "Alto Valor En Riesgo", "Alto Valor Perdido",
+        "Recuperable Urgente", "Recuperable Flete", "Recuperable Temprano",
+        "Recuperable Bajo", "Potencial Con Carrito", "Potencial Sin Carrito",
+        "Inactivo", "Perdido",
+    ]
+    return {
+        seg: {
+            "activa":       False,
+            "asunto":       f"Te echamos de menos, {seg}",
+            "mensaje":      f"Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+            "ultimo_envio": None,
+        }
+        for seg in segmentos
+    }
+
+
+def guardar_plantillas(plantillas):
+    """Guarda las plantillas de correo."""
+    ruta = os.path.join(RUTA_BASE, "plantillas_campanas.json")
+    with open(ruta, "w", encoding="utf-8") as f:
+        json.dump(plantillas, f, indent=2, ensure_ascii=False)
+
+
+def guardar_puntos_blueexpress(df_puntos):
+    """Guarda el DataFrame de puntos Blue Express como CSV."""
+    ruta = os.path.join(RUTA_BASE, "blue_express_puntos.csv")
+    df_puntos.to_csv(ruta, index=False)
+
+
+# =============================================================================
+# SEGMENTACIÓN
+# =============================================================================
+
+def segmentar_clientes(df_raw):
+    """
+    Aplica el pipeline completo de segmentación al DataFrame raw de VTEX.
+    Retorna DataFrame con columna 'segmento' y variables RFM.
+    """
+    df = df_raw.copy()
+    df["rclastsessiondate"] = pd.to_datetime(df["rclastsessiondate"], utc=True, errors="coerce")
+    df["rclastcartvalue"]   = pd.to_numeric(df["rclastcartvalue"], errors="coerce").fillna(0)
+
+    FECHA_CORTE = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=PARAMS["periodo_analisis_dias"])
+
+    # Métricas por cliente antes de deduplicar
+    metricas = df.groupby("userId").agg(
+        num_sesiones       = ("userId",           "count"),
+        monto_max_carrito  = ("rclastcartvalue",  "max"),
+        monto_prom_carrito = ("rclastcartvalue",  "mean"),
+        primera_sesion     = ("rclastsessiondate","min"),
+        ultima_sesion      = ("rclastsessiondate","max"),
+    ).reset_index()
+
+    # Deduplicar priorizando registros con paso conocido
+    df_con_paso = df[df["paso_abandono"] != "Desconocido"].copy()
+    df_sin_paso = df[df["paso_abandono"] == "Desconocido"].copy()
+
+    df_con_paso = df_con_paso.sort_values("rclastsessiondate", ascending=False).drop_duplicates(subset="userId", keep="first")
+    df_sin_paso = df_sin_paso[~df_sin_paso["userId"].isin(df_con_paso["userId"])]
+    df_sin_paso = df_sin_paso.sort_values("rclastsessiondate", ascending=False).drop_duplicates(subset="userId", keep="first")
+
+    df = pd.concat([df_con_paso, df_sin_paso], ignore_index=True)
+    df = df.merge(metricas, on="userId", how="left")
+    df = df[df["ultima_sesion"] >= FECHA_CORTE]
+
+    # Variables RFM
+    df["recencia_dias"] = (pd.Timestamp.now(tz="UTC") - df["ultima_sesion"]).dt.days
+    df["monto_carrito"] = df["rclastcartvalue"]
+    df["ticket_prom"]   = df["monto_prom_carrito"].round(0)
+    df["ticket_max"]    = df["monto_max_carrito"].round(0)
+    df["frecuencia"]    = df["num_sesiones"]
+    df["brecha_flete"]  = (PARAMS["ticket_umbral_flete_gratis"] - df["monto_carrito"]).clip(lower=0)
+    df["sobre_umbral"]  = df["monto_carrito"] >= PARAMS["ticket_umbral_flete_gratis"]
+    df["tiene_telefono"]   = df["homePhone"].notna()
+    df["tiene_newsletter"] = df["isNewsletterOptIn"].fillna(False)
+
+    df["segmento"] = df.apply(_asignar_segmento, axis=1)
+    df["segmento_reglas"] = df["segmento"]
+
+    return df
+
+
+def _asignar_segmento(row):
+    """Lógica de segmentación en dos capas."""
+    paso          = row.get("paso_abandono", "Desconocido")
+    dias          = row["recencia_dias"]
+    monto         = row["monto_carrito"]
+    tiene_carrito = monto > 0
+
+    # Capa 1 — paso de checkout conocido
+    if paso == "FormaPagamento":
+        return "Recuperable Urgente"
+    elif paso == "Endereco":
+        return "Recuperable Flete"
+    elif paso == "Carrinho":
+        return "Recuperable Temprano"
+    elif paso == "DadosPessoais":
+        return "Recuperable Bajo"
+
+    # Capa 2 — recencia y monto
+    if dias <= UMBRALES["recencia_activo"] and monto >= UMBRALES["monto_alto"]:
+        return "Cliente VIP"
+    elif dias <= UMBRALES["recencia_activo"] and monto >= UMBRALES["monto_medio"]:
+        return "Cliente Activo"
+    elif UMBRALES["recencia_activo"] < dias <= UMBRALES["recencia_riesgo"] and monto >= UMBRALES["monto_alto"]:
+        return "Alto Valor Reciente"
+    elif UMBRALES["recencia_riesgo"] < dias <= UMBRALES["recencia_en_riesgo"] and monto >= UMBRALES["monto_alto"]:
+        return "Alto Valor En Riesgo"
+    elif dias > UMBRALES["recencia_en_riesgo"] and monto >= UMBRALES["monto_alto"]:
+        return "Alto Valor Perdido"
+    elif dias <= UMBRALES["recencia_en_riesgo"] and tiene_carrito and monto >= UMBRALES["monto_medio"]:
+        return "Con Carrito"
+    elif dias <= UMBRALES["recencia_activo"] and tiene_carrito:
+        return "Potencial Con Carrito"
+    elif dias <= UMBRALES["recencia_activo"]:
+        return "Potencial Sin Carrito"
+    elif dias > UMBRALES["recencia_en_riesgo"]:
+        return "Perdido"
+    else:
+        return "Inactivo"
+
+
+# =============================================================================
+# MATCH BLUE EXPRESS
+# =============================================================================
+
+def distancia_haversine(lat1, lon1, lat2, lon2):
+    """Distancia en km entre dos coordenadas."""
+    R = 6371
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def punto_mas_cercano(lat, lon, df_puntos):
+    """Retorna el punto Blue Express más cercano a una coordenada."""
+    df = df_puntos.dropna(subset=["latitud", "longitud"]).copy()
+    df["distancia_km"] = df.apply(
+        lambda r: distancia_haversine(lat, lon, r["latitud"], r["longitud"]), axis=1
+    )
+    return df.sort_values("distancia_km").iloc[0]
+
+
+# =============================================================================
+# ESTADÍSTICAS
+# =============================================================================
+
+def calcular_estadisticas(df):
+    """
+    Calcula KPIs principales desde el DataFrame segmentado.
+    Retorna dict con métricas listas para mostrar en dashboard.
+    """
+    return {
+        "total_clientes":       len(df),
+        "monto_mediano":        df["monto_carrito"].median(),
+        "pct_contactables":     df["tiene_newsletter"].mean() * 100,
+        "pct_sobre_umbral":     df["sobre_umbral"].mean() * 100,
+        "recencia_promedio":    df["recencia_dias"].mean(),
+        "clientes_por_segmento": df["segmento"].value_counts().to_dict(),
+        "monto_por_segmento":   df.groupby("segmento")["monto_carrito"].median().to_dict(),
+        "potencial_por_segmento": (
+            df.groupby("segmento").apply(
+                lambda x: len(x) * x["monto_carrito"].median()
+            ).to_dict()
+        ),
+    }
