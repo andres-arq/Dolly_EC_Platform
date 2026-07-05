@@ -1,0 +1,154 @@
+# =============================================================================
+# 02_segmentacion.py — Explorador de segmentos
+# =============================================================================
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from pipeline_Dolly import cargar_perfil_clientes, PARAMS, UMBRALES
+
+st.set_page_config(page_title="Segmentación — Dolly", page_icon="👥", layout="wide")
+st.title("👥 Segmentación de Clientes")
+st.caption("Explora y filtra la base de clientes por segmento, monto y recencia.")
+st.markdown("---")
+
+# Cargar datos
+df = cargar_perfil_clientes()
+
+if df.empty:
+    st.warning("⚠️  No hay datos disponibles. Ve a **Actualizar Data** para cargar el CSV de VTEX.")
+    st.stop()
+
+# ==============================================
+# FILTROS
+# ==============================================
+st.subheader("Filtros")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    segmentos_disponibles = ["Todos"] + sorted(df["segmento"].unique().tolist())
+    segmento_seleccionado = st.selectbox("Segmento", segmentos_disponibles)
+
+with col2:
+    monto_min, monto_max = int(df["monto_carrito"].min()), int(df["monto_carrito"].max())
+    rango_monto = st.slider(
+        "Rango de monto carrito (CLP)",
+        min_value=monto_min,
+        max_value=monto_max,
+        value=(monto_min, monto_max),
+        step=1_000,
+        format="$%d",
+    )
+
+with col3:
+    recencia_min, recencia_max = int(df["recencia_dias"].min()), int(df["recencia_dias"].max())
+    rango_recencia = st.slider(
+        "Rango de recencia (días)",
+        min_value=recencia_min,
+        max_value=recencia_max,
+        value=(recencia_min, recencia_max),
+    )
+
+# Aplicar filtros
+df_filtrado = df.copy()
+if segmento_seleccionado != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["segmento"] == segmento_seleccionado]
+df_filtrado = df_filtrado[
+    (df_filtrado["monto_carrito"] >= rango_monto[0]) &
+    (df_filtrado["monto_carrito"] <= rango_monto[1]) &
+    (df_filtrado["recencia_dias"] >= rango_recencia[0]) &
+    (df_filtrado["recencia_dias"] <= rango_recencia[1])
+]
+
+st.markdown("---")
+
+# ==============================================
+# MÉTRICAS DEL FILTRO APLICADO
+# ==============================================
+st.subheader(f"Resultados — {len(df_filtrado):,} clientes")
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric("Clientes filtrados", f"{len(df_filtrado):,}")
+with col2:
+    st.metric("Monto mediano", f"${df_filtrado['monto_carrito'].median():,.0f}")
+with col3:
+    st.metric("Recencia promedio", f"{df_filtrado['recencia_dias'].mean():.0f} días")
+with col4:
+    potencial = len(df_filtrado) * df_filtrado["monto_carrito"].median()
+    st.metric("Potencial CLP", f"${potencial:,.0f}")
+
+st.markdown("---")
+
+# ==============================================
+# GRÁFICOS
+# ==============================================
+col_izq, col_der = st.columns(2)
+
+with col_izq:
+    fig = px.scatter(
+        df_filtrado,
+        x="recencia_dias",
+        y="monto_carrito",
+        color="segmento",
+        title="Recencia vs Monto por segmento",
+        labels={
+            "recencia_dias":  "Días desde última sesión",
+            "monto_carrito":  "Monto carrito (CLP)",
+        },
+        hover_data=["userId", "paso_abandono"],
+    )
+    fig.add_hline(
+        y=PARAMS["ticket_umbral_flete_gratis"],
+        line_dash="dash",
+        line_color="red",
+        annotation_text="Umbral flete gratis",
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+with col_der:
+    df_paso = df_filtrado[df_filtrado["paso_abandono"] != "Desconocido"]
+    if not df_paso.empty:
+        fig2 = px.pie(
+            df_paso,
+            names="paso_abandono",
+            title="Paso de abandono (clientes con dato)",
+            color_discrete_sequence=px.colors.qualitative.Set2,
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info("No hay clientes con paso de abandono conocido en este filtro.")
+
+st.markdown("---")
+
+# ==============================================
+# TABLA DE CLIENTES
+# ==============================================
+st.subheader("Detalle de clientes")
+
+columnas_mostrar = [
+    "userId", "segmento", "recencia_dias", "monto_carrito",
+    "ticket_prom", "frecuencia", "paso_abandono",
+    "sobre_umbral", "tiene_newsletter", "tiene_telefono",
+]
+
+columnas_existentes = [c for c in columnas_mostrar if c in df_filtrado.columns]
+
+st.dataframe(
+    df_filtrado[columnas_existentes].sort_values("monto_carrito", ascending=False),
+    use_container_width=True,
+    hide_index=True,
+)
+
+# Botón de descarga
+csv = df_filtrado[columnas_existentes].to_csv(index=False, encoding="utf-8-sig")
+st.download_button(
+    label="⬇️  Descargar segmento filtrado como CSV",
+    data=csv,
+    file_name=f"dolly_segmento_{segmento_seleccionado.lower().replace(' ', '_')}.csv",
+    mime="text/csv",
+)
