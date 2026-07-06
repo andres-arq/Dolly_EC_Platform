@@ -11,11 +11,19 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import cargar_perfil_clientes, calcular_estadisticas, PARAMS
+from estilo_Dolly import (
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    NEGRO, ROJO, VINO, GRIS, ESCALA_NEUTRA, ESCALA_ROJA,
+)
 
 st.set_page_config(page_title="Dashboard — Dolly", page_icon="📊", layout="wide")
-st.title("📊 Dashboard")
-st.caption("Visión general de la base de clientes y oportunidades de negocio.")
-st.markdown("---")
+aplicar_estilo()
+
+encabezado_pagina(
+    modulo="Módulo 01 · Dashboard",
+    titulo="Visión general de la base de clientes",
+    subtitulo="KPIs, segmentación y oportunidades de negocio.",
+)
 
 # Cargar datos
 df = cargar_perfil_clientes()
@@ -29,34 +37,21 @@ stats = calcular_estadisticas(df)
 # ==============================================
 # KPI CARDS
 # ==============================================
-st.subheader("Métricas clave")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric(
-        label="Total clientes",
-        value=f"{stats['total_clientes']:,}"
-    )
+    kpi_card("Total clientes", f"{stats['total_clientes']:,}")
 
 with col2:
-    st.metric(
-        label="Monto mediano carrito",
-        value=f"${stats['monto_mediano']:,.0f}"
-    )
+    kpi_card("Monto mediano carrito", f"${stats['monto_mediano']:,.0f}")
 
 with col3:
-    st.metric(
-        label="% Contactables (newsletter)",
-        value=f"{stats['pct_contactables']:.1f}%"
-    )
+    kpi_card("% Contactables (newsletter)", f"{stats['pct_contactables']:.1f}%", color=GRIS)
 
 with col4:
-    st.metric(
-        label="% Sobre umbral flete gratis",
-        value=f"{stats['pct_sobre_umbral']:.1f}%"
-    )
+    kpi_card("% Sobre umbral flete gratis", f"{stats['pct_sobre_umbral']:.1f}%", color=ROJO)
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # GRÁFICOS
@@ -76,10 +71,14 @@ with col_izq:
         y="Segmento",
         orientation="h",
         color="Clientes",
-        color_continuous_scale="Blues",
+        color_continuous_scale=ESCALA_NEUTRA,
         title="Clientes por segmento",
     )
-    fig.update_layout(showlegend=False, coloraxis_showscale=False)
+    fig.update_layout(
+        showlegend=False, coloraxis_showscale=False,
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font_color=NEGRO,
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 with col_der:
@@ -95,14 +94,18 @@ with col_der:
         y="Segmento",
         orientation="h",
         color="Potencial",
-        color_continuous_scale="Greens",
+        color_continuous_scale=ESCALA_ROJA,
         title="Potencial CLP (clientes × monto mediano)",
     )
-    fig2.update_layout(showlegend=False, coloraxis_showscale=False)
+    fig2.update_layout(
+        showlegend=False, coloraxis_showscale=False,
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font_color=NEGRO,
+    )
     fig2.update_xaxes(tickprefix="$", tickformat=",.0f")
     st.plotly_chart(fig2, use_container_width=True)
 
-st.markdown("---")
+divisor()
 
 col_izq2, col_der2 = st.columns(2)
 
@@ -112,10 +115,11 @@ with col_izq2:
         df,
         x="recencia_dias",
         nbins=30,
-        color_discrete_sequence=["#3498DB"],
+        color_discrete_sequence=[NEGRO],
         title="Días desde última sesión",
         labels={"recencia_dias": "Días"},
     )
+    fig3.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO)
     st.plotly_chart(fig3, use_container_width=True)
 
 with col_der2:
@@ -125,19 +129,20 @@ with col_der2:
         df_monto,
         x="monto_carrito",
         nbins=30,
-        color_discrete_sequence=["#2ECC71"],
+        color_discrete_sequence=[VINO],
         title="Valor del carrito (CLP)",
         labels={"monto_carrito": "CLP"},
     )
     fig4.add_vline(
         x=PARAMS["ticket_umbral_flete_gratis"],
         line_dash="dash",
-        line_color="red",
+        line_color=ROJO,
         annotation_text=f"Umbral flete ${PARAMS['ticket_umbral_flete_gratis']:,}",
     )
+    fig4.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO)
     st.plotly_chart(fig4, use_container_width=True)
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # TABLA RESUMEN
