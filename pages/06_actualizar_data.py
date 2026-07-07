@@ -123,6 +123,7 @@ if archivo_subido:
                     "monto_carrito", "ticket_prom", "ticket_max",
                     "frecuencia", "paso_abandono", "brecha_flete",
                     "sobre_umbral", "tiene_telefono", "tiene_newsletter",
+                    "es_comprador", "tiene_carrito_abandonado_historico",
                     "ultima_sesion", "primera_sesion",
                 ]
                 cols_existentes = [c for c in COLUMNAS_PERFIL if c in df_segmentado.columns]
@@ -138,6 +139,7 @@ if archivo_subido:
                     "recencia_dias", "monto_carrito", "ticket_prom",
                     "frecuencia", "sobre_umbral", "brecha_flete",
                     "tiene_telefono", "tiene_newsletter",
+                    "es_comprador", "tiene_carrito_abandonado_historico",
                 ]
                 cols_pbi = [c for c in COLUMNAS_POWERBI if c in df_segmentado.columns]
                 df_pbi   = df_segmentado[cols_pbi].copy()
@@ -146,7 +148,8 @@ if archivo_subido:
                     if col in df_pbi.columns:
                         df_pbi[col] = pd.to_datetime(df_pbi[col], errors="coerce").dt.tz_localize(None)
 
-                for col in ["sobre_umbral", "tiene_telefono", "tiene_newsletter"]:
+                for col in ["sobre_umbral", "tiene_telefono", "tiene_newsletter",
+                            "es_comprador", "tiene_carrito_abandonado_historico"]:
                     if col in df_pbi.columns:
                         df_pbi[col] = df_pbi[col].astype(int)
 
