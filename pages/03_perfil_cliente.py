@@ -10,11 +10,19 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import cargar_perfil_clientes, cargar_buyer_enrichment, PARAMS
+from estilo_Dolly import (
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    NEGRO, ROJO, VINO, GRIS,
+)
 
 st.set_page_config(page_title="Perfil Cliente — Dolly", page_icon="👤", layout="wide")
-st.title("👤 Perfil de Cliente")
-st.caption("Busca y revisa el perfil completo de un cliente individual.")
-st.markdown("---")
+aplicar_estilo()
+
+encabezado_pagina(
+    modulo="Módulo 03 · Perfil de cliente",
+    titulo="Perfil de cliente",
+    subtitulo="Busca y revisa el perfil completo de un cliente individual.",
+)
 
 # Cargar datos
 df_perfil   = cargar_perfil_clientes()
@@ -58,7 +66,7 @@ if df_resultado.empty:
     st.stop()
 
 # Selector de cliente individual
-st.markdown("---")
+divisor(margen_top=10)
 usuario_seleccionado = st.selectbox(
     f"Selecciona un cliente ({len(df_resultado):,} encontrados)",
     df_resultado["userId"].tolist()
@@ -66,7 +74,7 @@ usuario_seleccionado = st.selectbox(
 
 cliente = df_resultado[df_resultado["userId"] == usuario_seleccionado].iloc[0]
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # PERFIL DEL CLIENTE
@@ -112,7 +120,7 @@ with col_info:
                  7:"Julio",8:"Agosto",9:"Septiembre",10:"Octubre",11:"Noviembre",12:"Diciembre"}
         st.markdown(f"**Cumpleaños:** {meses.get(int(cliente['mes_cumpleanos']), '')}")
 
-    st.markdown("---")
+    divisor(margen_top=12, margen_bottom=12)
     st.markdown("**Canales de contacto:**")
 
     tiene_tel  = cliente.get("tiene_telefono", False)
@@ -129,27 +137,30 @@ with col_metricas:
 
     m1, m2, m3 = st.columns(3)
     with m1:
-        st.metric("Monto carrito", f"${cliente.get('monto_carrito', 0):,.0f}")
+        kpi_card("Monto carrito", f"${cliente.get('monto_carrito', 0):,.0f}")
     with m2:
-        st.metric("Recencia", f"{cliente.get('recencia_dias', 0):.0f} días")
+        kpi_card("Recencia", f"{cliente.get('recencia_dias', 0):.0f} días", color=GRIS)
     with m3:
-        st.metric("Frecuencia", f"{cliente.get('frecuencia', 0):.0f} sesiones")
+        kpi_card("Frecuencia", f"{cliente.get('frecuencia', 0):.0f} sesiones")
+
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
     m4, m5, m6 = st.columns(3)
     with m4:
-        st.metric("Ticket promedio", f"${cliente.get('ticket_prom', 0):,.0f}")
+        kpi_card("Ticket promedio", f"${cliente.get('ticket_prom', 0):,.0f}")
     with m5:
         umbral = PARAMS["ticket_umbral_flete_gratis"]
         brecha = max(0, umbral - cliente.get("monto_carrito", 0))
-        st.metric(
+        kpi_card(
             "Brecha flete gratis",
             f"${brecha:,.0f}",
-            delta="Flete gratis ✅" if brecha == 0 else f"Faltan ${brecha:,.0f}"
+            color=VINO if brecha > 0 else NEGRO,
+            ayuda="Flete gratis ✅" if brecha == 0 else f"Faltan ${brecha:,.0f}",
         )
     with m6:
-        st.metric("Paso abandono", cliente.get("paso_abandono", "Desconocido"))
+        kpi_card("Paso abandono", cliente.get("paso_abandono", "Desconocido"), color=ROJO)
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # PREFERENCIAS DE COMPRA
@@ -160,20 +171,20 @@ if any(col in cliente.index for col in ["marca_preferida", "categoria_preferida"
 
     with col_a:
         marca = cliente.get("marca_preferida")
-        st.metric("Marca preferida", marca if pd.notna(marca) else "Sin dato")
+        kpi_card("Marca preferida", marca if pd.notna(marca) else "Sin dato")
 
     with col_b:
         cat = cliente.get("categoria_preferida")
-        st.metric("Categoría preferida", cat if pd.notna(cat) else "Sin dato")
+        kpi_card("Categoría preferida", cat if pd.notna(cat) else "Sin dato")
 
     with col_c:
         es_escolar = cliente.get("es_cliente_escolar", 0)
-        st.metric("Cliente escolar", "Sí ✅" if es_escolar else "No")
+        kpi_card("Cliente escolar", "Sí ✅" if es_escolar else "No")
 
     if "sku_sin_stock_visitado" in cliente and pd.notna(cliente.get("sku_sin_stock_visitado")):
         st.warning(f"⚠️  Visitó producto sin stock: SKU `{cliente['sku_sin_stock_visitado']}`")
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # CLIENTES SIMILARES
