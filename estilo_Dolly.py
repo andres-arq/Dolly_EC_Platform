@@ -120,3 +120,16 @@ def divisor(margen_top=20, margen_bottom=20):
         f"border-top:0.5px solid {BORDE};'>",
         unsafe_allow_html=True,
     )
+
+
+def feature_card(icono, titulo, descripcion):
+    """Tarjeta de acceso a un módulo, usada en la portada (app_Dolly.py)."""
+    st.markdown(f"""
+        <div style="background:{CARD}; border:0.5px solid {BORDE}; border-left:3px solid {ROJO};
+                    border-radius:0 10px 10px 0; padding:16px 18px; height:100%; min-height:110px;">
+            <div style="font-size:16px; font-weight:700; color:{TEXTO_PRIMARIO}; margin-bottom:6px;">
+                {icono} {titulo}
+            </div>
+            <div style="font-size:13px; color:{TEXTO_SECUNDARIO};">{descripcion}</div>
+        </div>
+    """, unsafe_allow_html=True)
