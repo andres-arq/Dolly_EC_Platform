@@ -15,11 +15,19 @@ from pipeline_Dolly import (
     cargar_perfil_clientes,
     distancia_haversine,
 )
+from estilo_Dolly import (
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    NEGRO, ROJO, VINO, GRIS, SECUENCIA_CATEGORICA,
+)
 
 st.set_page_config(page_title="Blue Express — Dolly", page_icon="📍", layout="wide")
-st.title("📍 Gestión de Puntos Blue Express")
-st.caption("Administra los puntos de retiro disponibles y visualiza su cobertura.")
-st.markdown("---")
+aplicar_estilo()
+
+encabezado_pagina(
+    modulo="Módulo 05 · Blue Express",
+    titulo="Gestión de puntos Blue Express",
+    subtitulo="Administra los puntos de retiro disponibles y visualiza su cobertura.",
+)
 
 # Cargar datos
 df_puntos  = cargar_puntos_blueexpress()
@@ -30,13 +38,13 @@ df_clientes = cargar_perfil_clientes()
 # ==============================================
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("Total puntos", len(df_puntos))
+    kpi_card("Total puntos", len(df_puntos))
 with col2:
-    st.metric("Ciudades cubiertas", df_puntos["ciudad"].nunique())
+    kpi_card("Ciudades cubiertas", df_puntos["ciudad"].nunique(), color=GRIS)
 with col3:
-    st.metric("Regiones cubiertas", df_puntos["region"].nunique())
+    kpi_card("Regiones cubiertas", df_puntos["region"].nunique(), color=ROJO)
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # MAPA DE PUNTOS
@@ -52,6 +60,7 @@ fig_mapa = px.scatter_mapbox(
     hover_name="nombre",
     hover_data=["ciudad", "region", "estado"],
     color="region",
+    color_discrete_sequence=SECUENCIA_CATEGORICA,
     zoom=5,
     center={"lat": -40.0, "lon": -73.0},
     height=450,
@@ -61,7 +70,7 @@ fig_mapa.update_layout(mapbox_style="open-street-map")
 fig_mapa.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 0})
 st.plotly_chart(fig_mapa, use_container_width=True)
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # TABLA EDITABLE
@@ -94,7 +103,7 @@ with col_btn1:
         st.success("✅ Puntos guardados correctamente.")
         st.rerun()
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # AGREGAR PUNTO NUEVO
@@ -133,7 +142,7 @@ with st.form("form_nuevo_punto"):
         else:
             st.error("❌ Nombre y ciudad son obligatorios.")
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # ANÁLISIS DE COBERTURA
@@ -149,8 +158,12 @@ fig_cob = px.bar(
     x="ciudad",
     y="n_puntos",
     color="region",
+    color_discrete_sequence=SECUENCIA_CATEGORICA,
     title="Puntos Blue Express por ciudad",
     labels={"n_puntos": "N° puntos", "ciudad": "Ciudad"},
 )
-fig_cob.update_layout(xaxis_tickangle=-30)
+fig_cob.update_layout(
+    xaxis_tickangle=-30,
+    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO,
+)
 st.plotly_chart(fig_cob, use_container_width=True)
