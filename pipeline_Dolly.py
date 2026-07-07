@@ -51,6 +51,17 @@ def cargar_csv_vtex(ruta=None):
 
     df = pd.read_csv(ruta, sep=';', encoding='utf-8-sig', low_memory=False)
 
+    # VTEX es una plataforma brasileña — el campo checkouttag llega en portugués.
+    # Se traduce aquí, en el único punto donde se lee el dato crudo, para que el
+    # resto del pipeline y toda la app trabajen siempre en español.
+    TRADUCCION_PASOS = {
+        "DadosPessoais": "Datos personales",
+        "Carrinho":      "Carrito",
+        "Endereco":      "Dirección/despacho",
+        "FormaPagamento":"Forma de pago",
+        "Finalizado":    "Finalizado",
+    }
+
     def extraer_paso(val):
         if pd.isna(val):
             return "Desconocido"
@@ -61,7 +72,8 @@ def cargar_csv_vtex(ruta=None):
             parsed    = json.loads(limpio)
             resultado = parsed.get("DisplayValue")
             if resultado and resultado != "null":
-                return str(resultado)
+                resultado = str(resultado)
+                return TRADUCCION_PASOS.get(resultado, resultado)
             return "Desconocido"
         except:
             return "Desconocido"
@@ -179,7 +191,7 @@ def segmentar_clientes(df_raw):
 
     FECHA_CORTE = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=PARAMS["periodo_analisis_dias"])
 
-    PASOS_ABANDONO = ["FormaPagamento", "Endereco", "Carrinho", "DadosPessoais"]
+    PASOS_ABANDONO = ["Forma de pago", "Dirección/despacho", "Carrito", "Datos personales"]
 
     # Métricas y badges calculados sobre el HISTORIAL COMPLETO (todas las sesiones),
     # antes de quedarnos con una sola fila por cliente.
@@ -241,13 +253,13 @@ def _asignar_segmento(row):
     tiene_carrito = (monto > 0) and not es_comprador
 
     # Capa 1 — paso de checkout conocido (abandono real, nunca "Finalizado")
-    if paso == "FormaPagamento":
+    if paso == "Forma de pago":
         return "Recuperable Urgente"
-    elif paso == "Endereco":
+    elif paso == "Dirección/despacho":
         return "Recuperable Flete"
-    elif paso == "Carrinho":
+    elif paso == "Carrito":
         return "Recuperable Temprano"
-    elif paso == "DadosPessoais":
+    elif paso == "Datos personales":
         return "Recuperable Bajo"
 
     # Capa 2 — recencia y monto
