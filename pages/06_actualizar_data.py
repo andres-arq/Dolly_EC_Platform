@@ -14,11 +14,19 @@ from pipeline_Dolly import (
     PARAMS,
     RUTA_BASE,
 )
+from estilo_Dolly import (
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    NEGRO, ROJO, VINO, GRIS,
+)
 
 st.set_page_config(page_title="Actualizar Data — Dolly", page_icon="⬆️", layout="wide")
-st.title("⬆️ Actualizar Data")
-st.caption("Sube un nuevo CSV de VTEX para actualizar la segmentación y todos los archivos.")
-st.markdown("---")
+aplicar_estilo()
+
+encabezado_pagina(
+    modulo="Módulo 06 · Actualizar data",
+    titulo="Actualizar data",
+    subtitulo="Sube un nuevo CSV de VTEX para actualizar la segmentación y todos los archivos.",
+)
 
 # ==============================================
 # ESTADO ACTUAL
@@ -50,7 +58,7 @@ for archivo, descripcion in archivos.items():
 
 st.dataframe(pd.DataFrame(filas_estado), use_container_width=True, hide_index=True)
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # UPLOAD CSV
@@ -91,7 +99,7 @@ if archivo_subido:
         else:
             st.success("✅ Estructura del archivo validada correctamente.")
 
-        st.markdown("---")
+        divisor()
 
         # Botón para procesar
         if st.button("🚀 Procesar y actualizar todo", type="primary", use_container_width=True):
@@ -148,17 +156,17 @@ if archivo_subido:
                 )
                 st.write("✅ dolly_powerbi.csv actualizado")
 
-            st.markdown("---")
+            divisor()
             st.success("🎉 ¡Todo actualizado correctamente!")
 
             # Resumen
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Total clientes procesados", f"{len(df_segmentado):,}")
+                kpi_card("Total clientes procesados", f"{len(df_segmentado):,}")
             with col2:
-                st.metric("Segmentos generados", df_segmentado["segmento"].nunique())
+                kpi_card("Segmentos generados", df_segmentado["segmento"].nunique(), color=GRIS)
             with col3:
-                st.metric("Monto mediano", f"${df_segmentado['monto_carrito'].median():,.0f}")
+                kpi_card("Monto mediano", f"${df_segmentado['monto_carrito'].median():,.0f}", color=ROJO)
 
             st.subheader("Distribución de segmentos generada")
             conteo = df_segmentado["segmento"].value_counts().reset_index()
@@ -169,7 +177,7 @@ if archivo_subido:
     except Exception as e:
         st.error(f"❌ Error procesando el archivo: {e}")
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # DESCARGA DE ARCHIVOS GENERADOS
