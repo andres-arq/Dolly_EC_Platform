@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import cargar_perfil_clientes, PARAMS, UMBRALES
 from estilo_Dolly import (
-    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
     NEGRO, ROJO, VINO, GRIS, SECUENCIA_CATEGORICA,
 )
 
@@ -113,8 +113,8 @@ with col_izq:
         line_color=ROJO,
         annotation_text="Umbral flete gratis",
     )
-    fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO)
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
 
 with col_der:
     df_paso = df_filtrado[df_filtrado["paso_abandono"] != "Desconocido"]
@@ -125,8 +125,8 @@ with col_der:
             title="Paso de abandono (clientes con dato)",
             color_discrete_sequence=SECUENCIA_CATEGORICA,
         )
-        fig2.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO)
-        st.plotly_chart(fig2, use_container_width=True)
+        fig2.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
     else:
         st.info("No hay clientes con paso de abandono conocido en este filtro.")
 
