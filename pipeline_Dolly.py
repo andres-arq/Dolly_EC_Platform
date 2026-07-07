@@ -161,6 +161,17 @@ def segmentar_clientes(df_raw):
     """
     Aplica el pipeline completo de segmentación al DataFrame raw de VTEX.
     Retorna DataFrame con columna 'segmento' y variables RFM.
+
+    Cambios clave:
+    - Se usa SIEMPRE la sesión más reciente de cada cliente para definir su estado
+      actual (antes se priorizaba cualquier sesión con paso de checkout conocido,
+      aunque fuera más antigua que una sesión "Desconocido" o "Finalizado" posterior).
+    - "Finalizado" ya no se trata como abandono: se guarda como badge `es_comprador`
+      (compró en su sesión más reciente) y no participa en la Capa 1 de recuperación.
+    - Se agrega `tuvo_carrito_abandonado_historico`: True si en CUALQUIER sesión
+      pasada (no solo la más reciente) el cliente llegó a un paso de abandono
+      conocido. Permite identificar, por ejemplo, a un comprador reciente que
+      antes dejó carritos abandonados.
     """
     df = df_raw.copy()
     df["rclastsessiondate"] = pd.to_datetime(df["rclastsessiondate"], utc=True, errors="coerce")
@@ -168,7 +179,10 @@ def segmentar_clientes(df_raw):
 
     FECHA_CORTE = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=PARAMS["periodo_analisis_dias"])
 
-    # Métricas por cliente antes de deduplicar
+    PASOS_ABANDONO = ["FormaPagamento", "Endereco", "Carrinho", "DadosPessoais"]
+
+    # Métricas y badges calculados sobre el HISTORIAL COMPLETO (todas las sesiones),
+    # antes de quedarnos con una sola fila por cliente.
     metricas = df.groupby("userId").agg(
         num_sesiones       = ("userId",           "count"),
         monto_max_carrito  = ("rclastcartvalue",  "max"),
@@ -177,15 +191,18 @@ def segmentar_clientes(df_raw):
         ultima_sesion      = ("rclastsessiondate","max"),
     ).reset_index()
 
-    # Deduplicar priorizando registros con paso conocido
-    df_con_paso = df[df["paso_abandono"] != "Desconocido"].copy()
-    df_sin_paso = df[df["paso_abandono"] == "Desconocido"].copy()
+    badges = df.groupby("userId")["paso_abandono"].agg(
+        tuvo_carrito_abandonado_historico = lambda s: s.isin(PASOS_ABANDONO).any(),
+        tuvo_compra_finalizada_historico  = lambda s: (s == "Finalizado").any(),
+    ).reset_index()
 
-    df_con_paso = df_con_paso.sort_values("rclastsessiondate", ascending=False).drop_duplicates(subset="userId", keep="first")
-    df_sin_paso = df_sin_paso[~df_sin_paso["userId"].isin(df_con_paso["userId"])]
-    df_sin_paso = df_sin_paso.sort_values("rclastsessiondate", ascending=False).drop_duplicates(subset="userId", keep="first")
+    metricas = metricas.merge(badges, on="userId", how="left")
 
-    df = pd.concat([df_con_paso, df_sin_paso], ignore_index=True)
+    # Deduplicar: nos quedamos con la sesión MÁS RECIENTE de cada cliente, sin
+    # excepción — antes se le daba prioridad a cualquier fila con paso conocido
+    # por sobre la recencia real, lo que podía mostrar un estado de checkout
+    # viejo en vez del estado actual del cliente.
+    df = df.sort_values("rclastsessiondate", ascending=False).drop_duplicates(subset="userId", keep="first")
     df = df.merge(metricas, on="userId", how="left")
     df = df[df["ultima_sesion"] >= FECHA_CORTE]
 
@@ -200,6 +217,10 @@ def segmentar_clientes(df_raw):
     df["tiene_telefono"]   = df["homePhone"].notna()
     df["tiene_newsletter"] = df["isNewsletterOptIn"].fillna(False)
 
+    # Badges de compra / abandono
+    df["es_comprador"] = df["paso_abandono"] == "Finalizado"
+    df["tiene_carrito_abandonado_historico"] = df["tuvo_carrito_abandonado_historico"].fillna(False)
+
     df["segmento"] = df.apply(_asignar_segmento, axis=1)
     df["segmento_reglas"] = df["segmento"]
 
@@ -211,9 +232,15 @@ def _asignar_segmento(row):
     paso          = row.get("paso_abandono", "Desconocido")
     dias          = row["recencia_dias"]
     monto         = row["monto_carrito"]
-    tiene_carrito = monto > 0
+    es_comprador  = row.get("es_comprador", False)
 
-    # Capa 1 — paso de checkout conocido
+    # Un cliente "comprador" (su sesión más reciente terminó en Finalizado) no
+    # tiene un carrito pendiente que recuperar — su monto_carrito es la compra
+    # que ya se cerró, no una oportunidad futura. Por eso no cuenta como
+    # "tiene_carrito" para las reglas de Con Carrito / Potencial Con Carrito.
+    tiene_carrito = (monto > 0) and not es_comprador
+
+    # Capa 1 — paso de checkout conocido (abandono real, nunca "Finalizado")
     if paso == "FormaPagamento":
         return "Recuperable Urgente"
     elif paso == "Endereco":
