@@ -10,11 +10,19 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import cargar_perfil_clientes, PARAMS, UMBRALES
+from estilo_Dolly import (
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    NEGRO, ROJO, VINO, GRIS, SECUENCIA_CATEGORICA,
+)
 
 st.set_page_config(page_title="Segmentación — Dolly", page_icon="👥", layout="wide")
-st.title("👥 Segmentación de Clientes")
-st.caption("Explora y filtra la base de clientes por segmento, monto y recencia.")
-st.markdown("---")
+aplicar_estilo()
+
+encabezado_pagina(
+    modulo="Módulo 02 · Segmentación",
+    titulo="Segmentación de clientes",
+    subtitulo="Explora y filtra la base de clientes por segmento, monto y recencia.",
+)
 
 # Cargar datos
 df = cargar_perfil_clientes()
@@ -64,25 +72,21 @@ df_filtrado = df_filtrado[
     (df_filtrado["recencia_dias"] <= rango_recencia[1])
 ]
 
-st.markdown("---")
-
-# ==============================================
-# MÉTRICAS DEL FILTRO APLICADO
-# ==============================================
+divisor()
 st.subheader(f"Resultados — {len(df_filtrado):,} clientes")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("Clientes filtrados", f"{len(df_filtrado):,}")
+    kpi_card("Clientes filtrados", f"{len(df_filtrado):,}")
 with col2:
-    st.metric("Monto mediano", f"${df_filtrado['monto_carrito'].median():,.0f}")
+    kpi_card("Monto mediano", f"${df_filtrado['monto_carrito'].median():,.0f}")
 with col3:
-    st.metric("Recencia promedio", f"{df_filtrado['recencia_dias'].mean():.0f} días")
+    kpi_card("Recencia promedio", f"{df_filtrado['recencia_dias'].mean():.0f} días", color=GRIS)
 with col4:
     potencial = len(df_filtrado) * df_filtrado["monto_carrito"].median()
-    st.metric("Potencial CLP", f"${potencial:,.0f}")
+    kpi_card("Potencial CLP", f"${potencial:,.0f}", color=ROJO)
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # GRÁFICOS
@@ -95,6 +99,7 @@ with col_izq:
         x="recencia_dias",
         y="monto_carrito",
         color="segmento",
+        color_discrete_sequence=SECUENCIA_CATEGORICA,
         title="Recencia vs Monto por segmento",
         labels={
             "recencia_dias":  "Días desde última sesión",
@@ -105,9 +110,10 @@ with col_izq:
     fig.add_hline(
         y=PARAMS["ticket_umbral_flete_gratis"],
         line_dash="dash",
-        line_color="red",
+        line_color=ROJO,
         annotation_text="Umbral flete gratis",
     )
+    fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO)
     st.plotly_chart(fig, use_container_width=True)
 
 with col_der:
@@ -117,13 +123,14 @@ with col_der:
             df_paso,
             names="paso_abandono",
             title="Paso de abandono (clientes con dato)",
-            color_discrete_sequence=px.colors.qualitative.Set2,
+            color_discrete_sequence=SECUENCIA_CATEGORICA,
         )
+        fig2.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO)
         st.plotly_chart(fig2, use_container_width=True)
     else:
         st.info("No hay clientes con paso de abandono conocido en este filtro.")
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # TABLA DE CLIENTES
