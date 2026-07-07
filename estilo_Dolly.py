@@ -133,3 +133,25 @@ def feature_card(icono, titulo, descripcion):
             <div style="font-size:13px; color:{TEXTO_SECUNDARIO};">{descripcion}</div>
         </div>
     """, unsafe_allow_html=True)
+
+
+def estilizar_grafico(fig):
+    """
+    Fuerza la paleta Dolly (fondo transparente, texto negro) en un gráfico Plotly.
+    IMPORTANTE: usar siempre junto con st.plotly_chart(fig, theme=None) — si no se
+    pasa theme=None, Streamlit reemplaza estos colores por su propio tema
+    (claro/oscuro automático de Streamlit Cloud) y el texto queda casi invisible.
+    """
+    fig.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color=NEGRO,
+        title_font_color=NEGRO,
+        legend_font_color=NEGRO,
+    )
+    try:
+        fig.update_xaxes(tickfont_color=NEGRO, title_font_color=NEGRO, gridcolor=BORDE, linecolor=BORDE)
+        fig.update_yaxes(tickfont_color=NEGRO, title_font_color=NEGRO, gridcolor=BORDE, linecolor=BORDE)
+    except Exception:
+        pass  # figuras sin ejes cartesianos (ej. mapas, pie charts)
+    return fig
