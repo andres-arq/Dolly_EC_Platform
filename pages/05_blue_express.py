@@ -16,7 +16,7 @@ from pipeline_Dolly import (
     distancia_haversine,
 )
 from estilo_Dolly import (
-    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
     NEGRO, ROJO, VINO, GRIS, SECUENCIA_CATEGORICA,
 )
 
@@ -68,7 +68,7 @@ fig_mapa = px.scatter_mapbox(
 )
 fig_mapa.update_layout(mapbox_style="open-street-map")
 fig_mapa.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 0})
-st.plotly_chart(fig_mapa, use_container_width=True)
+st.plotly_chart(estilizar_grafico(fig_mapa), use_container_width=True, theme=None)
 
 divisor()
 
@@ -162,8 +162,5 @@ fig_cob = px.bar(
     title="Puntos Blue Express por ciudad",
     labels={"n_puntos": "N° puntos", "ciudad": "Ciudad"},
 )
-fig_cob.update_layout(
-    xaxis_tickangle=-30,
-    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO,
-)
-st.plotly_chart(fig_cob, use_container_width=True)
+fig_cob.update_layout(xaxis_tickangle=-30)
+st.plotly_chart(estilizar_grafico(fig_cob), use_container_width=True, theme=None)
