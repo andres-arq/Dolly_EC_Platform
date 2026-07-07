@@ -14,11 +14,19 @@ from pipeline_Dolly import (
     guardar_plantillas,
     PARAMS,
 )
+from estilo_Dolly import (
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    NEGRO, ROJO, VINO, GRIS,
+)
 
 st.set_page_config(page_title="Campañas — Dolly", page_icon="📧", layout="wide")
-st.title("📧 Gestión de Campañas")
-st.caption("Edita las plantillas de correo por segmento y activa o desactiva campañas.")
-st.markdown("---")
+aplicar_estilo()
+
+encabezado_pagina(
+    modulo="Módulo 04 · Campañas",
+    titulo="Gestión de campañas",
+    subtitulo="Edita las plantillas de correo por segmento y activa o desactiva campañas.",
+)
 
 # Cargar datos
 df         = cargar_perfil_clientes()
@@ -49,20 +57,20 @@ segmento_sel = st.selectbox(
     format_func=lambda s: f"{s} ({stats_dict.get(s, {}).get('clientes', 0):,} clientes)"
 )
 
-st.markdown("---")
+divisor()
 
 # Info del segmento seleccionado
 info = stats_dict.get(segmento_sel, {})
 if info:
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Clientes en segmento", f"{info.get('clientes', 0):,}")
+        kpi_card("Clientes en segmento", f"{info.get('clientes', 0):,}")
     with col2:
-        st.metric("Monto mediano", f"${info.get('monto_mediano', 0):,.0f}")
+        kpi_card("Monto mediano", f"${info.get('monto_mediano', 0):,.0f}")
     with col3:
-        st.metric("% Contactables newsletter", f"{info.get('pct_newsletter', 0):.1f}%")
+        kpi_card("% Contactables newsletter", f"{info.get('pct_newsletter', 0):.1f}%", color=GRIS)
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # EDITOR DE PLANTILLA
@@ -129,10 +137,10 @@ with col_preview:
 
     st.markdown(f"**Para:** cliente@ejemplo.cl")
     st.markdown(f"**Asunto:** {asunto if asunto else '_(sin asunto)_'}")
-    st.markdown("---")
+    divisor(margen_top=10, margen_bottom=10)
     st.markdown(mensaje_preview if mensaje_preview else "_(mensaje vacío)_")
 
-st.markdown("---")
+divisor()
 
 # ==============================================
 # RESUMEN DE TODAS LAS CAMPAÑAS
