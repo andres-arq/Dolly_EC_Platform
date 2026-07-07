@@ -12,7 +12,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import cargar_perfil_clientes, calcular_estadisticas, PARAMS
 from estilo_Dolly import (
-    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
     NEGRO, ROJO, VINO, GRIS, ESCALA_NEUTRA, ESCALA_ROJA,
 )
 
@@ -74,12 +74,8 @@ with col_izq:
         color_continuous_scale=ESCALA_NEUTRA,
         title="Clientes por segmento",
     )
-    fig.update_layout(
-        showlegend=False, coloraxis_showscale=False,
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font_color=NEGRO,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(showlegend=False, coloraxis_showscale=False)
+    st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
 
 with col_der:
     st.subheader("Potencial de facturación por segmento")
@@ -97,13 +93,9 @@ with col_der:
         color_continuous_scale=ESCALA_ROJA,
         title="Potencial CLP (clientes × monto mediano)",
     )
-    fig2.update_layout(
-        showlegend=False, coloraxis_showscale=False,
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font_color=NEGRO,
-    )
+    fig2.update_layout(showlegend=False, coloraxis_showscale=False)
     fig2.update_xaxes(tickprefix="$", tickformat=",.0f")
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
 
 divisor()
 
@@ -119,8 +111,7 @@ with col_izq2:
         title="Días desde última sesión",
         labels={"recencia_dias": "Días"},
     )
-    fig3.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO)
-    st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
 
 with col_der2:
     st.subheader("Distribución de monto de carrito")
@@ -139,8 +130,7 @@ with col_der2:
         line_color=ROJO,
         annotation_text=f"Umbral flete ${PARAMS['ticket_umbral_flete_gratis']:,}",
     )
-    fig4.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", font_color=NEGRO)
-    st.plotly_chart(fig4, use_container_width=True)
+    st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
 
 divisor()
 
