@@ -104,6 +104,26 @@ with col_info:
     icono = COLORES_SEGMENTO.get(cliente.get("segmento", ""), "⚪")
     st.markdown(f"### {icono} {cliente.get('segmento', 'Sin segmento')}")
 
+    # Badges de comprador / historial de abandono — independientes del segmento.
+    es_comprador = bool(cliente.get("es_comprador", False))
+    tuvo_abandono_previo = bool(cliente.get("tiene_carrito_abandonado_historico", False))
+
+    if es_comprador:
+        st.markdown(
+            f"<span style='background:{NEGRO}; color:#fff; padding:3px 10px; "
+            f"border-radius:12px; font-size:12px;'>🛒 Comprador — última sesión finalizada</span>",
+            unsafe_allow_html=True,
+        )
+    if tuvo_abandono_previo:
+        st.markdown(
+            f"<span style='background:{VINO}; color:#fff; padding:3px 10px; "
+            f"border-radius:12px; font-size:12px; margin-top:6px; display:inline-block;'>"
+            f"⚠️ Tuvo carrito(s) abandonado(s) antes</span>",
+            unsafe_allow_html=True,
+        )
+    if es_comprador or tuvo_abandono_previo:
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
     st.markdown(f"**userId:** `{cliente['userId']}`")
 
     if "genero" in cliente and pd.notna(cliente.get("genero")):
