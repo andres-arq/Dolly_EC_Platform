@@ -69,6 +69,16 @@ def aplicar_estilo():
         hr {{
             border-color: {BORDE} !important;
         }}
+        /* Separación entre columnas — más generosa que el gap nativo de
+           Streamlit, y con línea divisoria cuando la columna contiene un
+           gráfico Plotly, para distinguir claramente un segmento del otro. */
+        div[data-testid="stHorizontalBlock"] {{
+            gap: 2.5rem;
+        }}
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:has(.js-plotly-plot):not(:last-child) {{
+            border-right: 1px solid {BORDE};
+            padding-right: 2rem;
+        }}
         .stButton > button[kind="primary"] {{
             background-color: {NEGRO};
             border: none;
