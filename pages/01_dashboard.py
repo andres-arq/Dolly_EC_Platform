@@ -149,6 +149,7 @@ df_prioritarios = clientes_prioritarios(df, n=cantidad)
 
 columnas_prioridad = [
     "userId", "segmento", "recencia_dias", "monto_carrito",
+    "producto_id", "categoria_producto", "marca_producto",
     "paso_abandono", "es_comprador", "tiene_carrito_abandonado_historico",
     "tiene_telefono", "tiene_newsletter",
 ]
