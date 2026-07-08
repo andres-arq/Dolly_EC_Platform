@@ -129,7 +129,7 @@ if not resumen_rec.empty:
     resumen_rec["pct_clientes"]  = resumen_rec["clientes"] / total_clientes_rec * 100
     resumen_rec["pct_potencial"] = resumen_rec["potencial_clp"] / total_potencial_rec * 100
 
-    col_rec1, col_rec2 = st.columns(2)
+    col_rec1, col_rec2 = st.columns(2, gap="large")
     with col_rec1:
         fig_rec1 = px.bar(
             resumen_rec.sort_values("pct_clientes"),
@@ -170,7 +170,7 @@ st.caption("Todos los segmentos, incluyendo los de bajo volumen mostrados arriba
 # ==============================================
 # GRÁFICOS
 # ==============================================
-col_izq, col_der = st.columns(2)
+col_izq, col_der = st.columns(2, gap="large")
 
 with col_izq:
     df_pot = pd.DataFrame({
@@ -222,7 +222,7 @@ with st.expander("📖 ¿Qué significa cada segmento? (explicación + recomenda
 
 divisor()
 
-col_izq2, col_der2 = st.columns(2)
+col_izq2, col_der2 = st.columns(2, gap="large")
 
 with col_izq2:
     st.subheader("Distribución de recencia")
