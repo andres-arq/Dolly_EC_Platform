@@ -112,8 +112,9 @@ with col_editor:
                 "mensaje":      mensaje,
                 "ultimo_envio": plantilla_actual.get("ultimo_envio"),
             }
-            guardar_plantillas(plantillas)
+            ok_sync, detalle_sync = guardar_plantillas(plantillas)
             st.success("✅ Plantilla guardada correctamente.")
+            (st.success if ok_sync else st.warning)(detalle_sync)
 
     with col_btn2:
         if st.button("↩️ Restaurar original", use_container_width=True):
