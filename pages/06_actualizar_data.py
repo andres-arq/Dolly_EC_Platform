@@ -135,6 +135,7 @@ if archivo_subido:
                     "frecuencia", "paso_abandono", "brecha_flete",
                     "sobre_umbral", "tiene_telefono", "tiene_newsletter",
                     "es_comprador", "tiene_carrito_abandonado_historico",
+                    "producto_id", "categoria_producto", "marca_producto", "departamento_producto",
                     "ultima_sesion", "primera_sesion",
                 ]
                 cols_existentes = [c for c in COLUMNAS_PERFIL if c in df_segmentado.columns]
@@ -152,6 +153,7 @@ if archivo_subido:
                     "frecuencia", "sobre_umbral", "brecha_flete",
                     "tiene_telefono", "tiene_newsletter",
                     "es_comprador", "tiene_carrito_abandonado_historico",
+                    "producto_id", "categoria_producto", "marca_producto", "departamento_producto",
                 ]
                 cols_pbi = [c for c in COLUMNAS_POWERBI if c in df_segmentado.columns]
                 df_pbi   = df_segmentado[cols_pbi].copy()
