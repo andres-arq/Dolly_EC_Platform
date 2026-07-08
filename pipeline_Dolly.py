@@ -260,6 +260,29 @@ def segmentar_clientes(df_raw):
     df["es_comprador"] = df["paso_abandono"] == "Finalizado"
     df["tiene_carrito_abandonado_historico"] = df["tuvo_carrito_abandonado_historico"].fillna(False)
 
+    # Producto de interés: si compró, el producto comprado; si no, el último
+    # producto visitado (el dato más cercano a "qué tenía en el carrito" que
+    # entrega VTEX — no existe un campo explícito de ítems del carrito).
+    def _producto_comprado_o_visitado(row):
+        if row.get("es_comprador"):
+            return row.get("productPurchasedTag")
+        return row.get("productVisitedTag")
+
+    def _categoria_comprada_o_visitada(row):
+        if row.get("es_comprador"):
+            return row.get("categoryPurchasedTag")
+        return row.get("categoryVisitedTag")
+
+    def _marca_comprada_o_visitada(row):
+        if row.get("es_comprador"):
+            return row.get("brandPurchasedTag")
+        return row.get("brandVisitedTag")
+
+    df["producto_id"]          = df.apply(_producto_comprado_o_visitado, axis=1)
+    df["categoria_producto"]   = df.apply(_categoria_comprada_o_visitada, axis=1)
+    df["marca_producto"]       = df.apply(_marca_comprada_o_visitada, axis=1)
+    df["departamento_producto"] = df["departmentVisitedTag"] if "departmentVisitedTag" in df.columns else None
+
     df["segmento"] = df.apply(_asignar_segmento, axis=1)
     df["segmento_reglas"] = df["segmento"]
 
