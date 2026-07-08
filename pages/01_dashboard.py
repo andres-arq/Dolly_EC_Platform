@@ -12,11 +12,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import (
     cargar_perfil_clientes, calcular_estadisticas,
     clientes_prioritarios, resumen_recuperables,
-    DESCRIPCION_SEGMENTOS, ORDEN_PRIORIDAD_SEGMENTOS, PARAMS,
+    DESCRIPCION_SEGMENTOS, ORDEN_PRIORIDAD_SEGMENTOS, SEGMENTOS_RECUPERABLES, PARAMS,
 )
 from estilo_Dolly import (
     aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
-    NEGRO, ROJO, VINO, GRIS, CARD, BORDE, TEXTO_SECUNDARIO, ESCALA_NEUTRA, ESCALA_ROJA,
+    NEGRO, ROJO, VINO, GRIS, GRIS_CLARO, CARD, BORDE, TEXTO_SECUNDARIO, ESCALA_NEUTRA, ESCALA_ROJA,
 )
 
 st.set_page_config(page_title="Dashboard — Dolly", page_icon="📊", layout="wide")
@@ -165,7 +165,12 @@ divisor()
 # PANORAMA GENERAL — TODOS LOS SEGMENTOS
 # ==============================================
 st.subheader("Panorama general de la base")
-st.caption("Todos los segmentos, incluyendo los de bajo volumen mostrados arriba.")
+st.caption(
+    "Torta con todos los segmentos. El gráfico de barras de la derecha excluye "
+    "Perdido, Inactivo y los 4 Recuperable (ya tienen su propio gráfico arriba) "
+    "para que el resto de los segmentos —donde también hay decisiones que tomar— "
+    "no quede invisible al lado de esos volúmenes tan grandes."
+)
 
 # ==============================================
 # GRÁFICOS
@@ -194,21 +199,37 @@ with col_izq:
     st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
 
 with col_der:
+    SEGMENTOS_EXCLUIDOS_PANORAMA = SEGMENTOS_RECUPERABLES + ["Perdido", "Inactivo"]
+
     df_seg = pd.DataFrame({
         "Segmento": list(stats["clientes_por_segmento"].keys()),
         "Clientes": list(stats["clientes_por_segmento"].values()),
-    }).sort_values("Clientes", ascending=True)
+    })
+    df_seg = df_seg[~df_seg["Segmento"].isin(SEGMENTOS_EXCLUIDOS_PANORAMA)]
+    df_seg = df_seg.sort_values("Clientes", ascending=True)
+
+    # Color por accionabilidad (mismo orden de urgencia que el resto del
+    # Dashboard) en vez de por volumen — así el segmento más urgente destaca
+    # aunque tenga pocos clientes, y no al revés.
+    n_segmentos_totales = max(len(ORDEN_PRIORIDAD_SEGMENTOS), 1)
+    mapa_color_prioridad = {
+        seg: px.colors.sample_colorscale(
+            [GRIS_CLARO, VINO, ROJO],
+            [1 - (rank - 1) / max(n_segmentos_totales - 1, 1)],
+        )[0]
+        for seg, rank in ORDEN_PRIORIDAD_SEGMENTOS.items()
+    }
 
     fig = px.bar(
         df_seg,
         x="Clientes",
         y="Segmento",
         orientation="h",
-        color="Clientes",
-        color_continuous_scale=ESCALA_NEUTRA,
-        title="Clientes por segmento",
+        color="Segmento",
+        color_discrete_map=mapa_color_prioridad,
+        title="Clientes por segmento (excluye Perdido/Inactivo/Recuperables)",
     )
-    fig.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title=None)
+    fig.update_layout(showlegend=False, yaxis_title=None)
     fig.update_yaxes(automargin=True)
     st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
 
