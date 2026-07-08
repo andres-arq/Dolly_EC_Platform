@@ -415,6 +415,40 @@ ORDEN_PRIORIDAD_SEGMENTOS = {
     "Perdido":               14,
 }
 
+# Glosario ejecutivo: qué significa cada segmento y qué hacer con él. Se usa
+# en el Dashboard para que cualquiera (no solo quien construyó la segmentación)
+# entienda de un vistazo por qué un cliente cae en cada categoría.
+DESCRIPCION_SEGMENTOS = {
+    "Recuperable Urgente":   ("Llegó hasta \"Forma de pago\" y no completó — alta intención, dinero casi cerrado.",
+                              "Contactar hoy (llamada/WhatsApp). Revisar si hubo un problema con el método de pago."),
+    "Recuperable Flete":     ("Abandonó justo al ver el costo de despacho.",
+                              "Mostrar cuánto le falta para el despacho gratis, o financiar el envío si el monto lo justifica."),
+    "Recuperable Temprano":  ("Dejó el carrito en un paso inicial del checkout — interés reciente pero aún tibio.",
+                              "Recordatorio simple, sin presión ni descuento todavía."),
+    "Recuperable Bajo":      ("Abandonó muy temprano (datos personales) — baja probabilidad de conversión.",
+                              "Último intento; si no responde a un recordatorio, requiere incentivo concreto (descuento)."),
+    "Cliente VIP":           ("Compra reciente y de alto monto — el cliente de mayor valor actual.",
+                              "Cuidar la relación con beneficios exclusivos (acceso anticipado, despacho prioritario). Evitar descuentos genéricos."),
+    "Cliente Activo":        ("Compra con frecuencia, montos medios, buena recencia.",
+                              "Mantener con novedades y contenido relevante — no necesita incentivo para comprar."),
+    "Alto Valor Reciente":   ("Compró caro hace poco; aún no muestra señales de riesgo.",
+                              "Cross-sell o contenido de valor sobre lo que compró, para profundizar la relación."),
+    "Alto Valor En Riesgo":  ("Fue buen cliente y empieza a alejarse (61-180 días sin actividad).",
+                              "Reactivar con una oferta relevante antes de que pase al siguiente nivel de riesgo."),
+    "Alto Valor Perdido":    ("Fue un cliente importante, pero lleva mucho tiempo sin comprar (+300 días).",
+                              "Oferta fuerte de reactivación — es la última oportunidad real antes de darlo por perdido."),
+    "Con Carrito":           ("Tiene un carrito armado con monto medio/alto, sin abandono de checkout identificado.",
+                              "Recordatorio de carrito estándar."),
+    "Potencial Con Carrito": ("Cliente nuevo o poco frecuente que ya armó un carrito.",
+                              "Incentivo de primera compra (descuento de bienvenida) para cerrar la conversión inicial."),
+    "Potencial Sin Carrito": ("Visita la tienda, pero no arma carrito.",
+                              "Contenido de descubrimiento (productos populares), no venta directa todavía."),
+    "Inactivo":              ("Recencia alta (más de 300 días) sin las características de alto valor.",
+                              "Campaña de reactivación general, de bajo costo."),
+    "Perdido":               ("Más de un año sin actividad — la menor probabilidad de conversión de toda la base.",
+                              "Solo justifica un incentivo fuerte; en general es mejor priorizar el resto de la base primero."),
+}
+
 
 def clientes_prioritarios(df, n=25):
     """
