@@ -11,7 +11,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import (
     cargar_perfil_clientes, calcular_estadisticas,
-    clientes_prioritarios, resumen_recuperables, PARAMS,
+    clientes_prioritarios, resumen_recuperables,
+    DESCRIPCION_SEGMENTOS, ORDEN_PRIORIDAD_SEGMENTOS, PARAMS,
 )
 from estilo_Dolly import (
     aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
@@ -172,25 +173,6 @@ st.caption("Todos los segmentos, incluyendo los de bajo volumen mostrados arriba
 col_izq, col_der = st.columns(2)
 
 with col_izq:
-    df_seg = pd.DataFrame({
-        "Segmento": list(stats["clientes_por_segmento"].keys()),
-        "Clientes": list(stats["clientes_por_segmento"].values()),
-    }).sort_values("Clientes", ascending=True)
-
-    fig = px.bar(
-        df_seg,
-        x="Clientes",
-        y="Segmento",
-        orientation="h",
-        color="Clientes",
-        color_continuous_scale=ESCALA_NEUTRA,
-        title="Clientes por segmento",
-    )
-    fig.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title=None)
-    fig.update_yaxes(automargin=True)
-    st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
-
-with col_der:
     df_pot = pd.DataFrame({
         "Segmento":   list(stats["potencial_por_segmento"].keys()),
         "Potencial":  list(stats["potencial_por_segmento"].values()),
@@ -210,6 +192,33 @@ with col_der:
     )
     fig2.update_traces(textposition="inside", textinfo="percent+label", showlegend=False)
     st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
+
+with col_der:
+    df_seg = pd.DataFrame({
+        "Segmento": list(stats["clientes_por_segmento"].keys()),
+        "Clientes": list(stats["clientes_por_segmento"].values()),
+    }).sort_values("Clientes", ascending=True)
+
+    fig = px.bar(
+        df_seg,
+        x="Clientes",
+        y="Segmento",
+        orientation="h",
+        color="Clientes",
+        color_continuous_scale=ESCALA_NEUTRA,
+        title="Clientes por segmento",
+    )
+    fig.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title=None)
+    fig.update_yaxes(automargin=True)
+    st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
+
+with st.expander("📖 ¿Qué significa cada segmento? (explicación + recomendación)"):
+    filas_glosario = [
+        {"Segmento": seg, "Qué significa": desc, "Recomendación": rec}
+        for seg, (desc, rec) in DESCRIPCION_SEGMENTOS.items()
+    ]
+    filas_glosario = sorted(filas_glosario, key=lambda f: ORDEN_PRIORIDAD_SEGMENTOS.get(f["Segmento"], 99))
+    st.dataframe(pd.DataFrame(filas_glosario), use_container_width=True, hide_index=True)
 
 divisor()
 
