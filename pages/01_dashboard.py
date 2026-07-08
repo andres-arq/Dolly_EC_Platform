@@ -100,7 +100,7 @@ with col2:
     kpi_card("Clientes recuperables ahora", f"{total_recuperables:,}", color=ROJO)
 
 with col3:
-    kpi_card("Monto mediano carrito", f"${stats['monto_mediano']:,.0f}")
+    kpi_card("Monto mediano carrito (toda la base)", f"${stats['monto_mediano']:,.0f}")
 
 with col4:
     kpi_card("% Contactables (newsletter)", f"{stats['pct_contactables']:.1f}%", color=GRIS)
@@ -111,35 +111,49 @@ with col5:
 divisor()
 
 # ==============================================
-# OPORTUNIDADES DE RECUPERACIÓN INMEDIATA
+# OPORTUNIDADES DE RECUPERACIÓN
 # ==============================================
-st.subheader("🎯 Oportunidades de recuperación inmediata")
+st.subheader("Oportunidades de recuperación")
 st.caption(
-    "Los 4 segmentos de recuperación de carrito — son pocos clientes frente al total de "
-    "la base, por eso quedan invisibles en el gráfico general de abajo. Acá tienen su "
-    "propia escala para que se vean."
+    "Clientes que llegaron a un paso real del checkout (Carrito, Dirección/despacho, "
+    "Forma de pago o Datos personales) sin completar la compra — son pocos frente al "
+    "total de la base, por eso tienen su propio gráfico en vez de perderse en el de abajo. "
+    "Ambas barras están en % del total recuperable, para comparar directamente si un "
+    "segmento pesa más en clientes o en plata."
 )
 
 if not resumen_rec.empty:
+    total_clientes_rec  = resumen_rec["clientes"].sum()
+    total_potencial_rec = resumen_rec["potencial_clp"].sum()
+    resumen_rec["pct_clientes"]  = resumen_rec["clientes"] / total_clientes_rec * 100
+    resumen_rec["pct_potencial"] = resumen_rec["potencial_clp"] / total_potencial_rec * 100
+
     col_rec1, col_rec2 = st.columns(2)
     with col_rec1:
         fig_rec1 = px.bar(
-            resumen_rec.sort_values("clientes"),
-            x="clientes", y="segmento", orientation="h",
+            resumen_rec.sort_values("pct_clientes"),
+            x="pct_clientes", y="segmento", orientation="h",
             color_discrete_sequence=[ROJO],
-            title="Clientes por segmento recuperable",
+            text=resumen_rec.sort_values("pct_clientes")["clientes"].map(lambda v: f"{v:,}"),
+            title="% de clientes recuperables, por segmento",
         )
-        fig_rec1.update_layout(showlegend=False)
+        fig_rec1.update_traces(textposition="outside")
+        fig_rec1.update_layout(showlegend=False, yaxis_title=None, xaxis_title="% del total recuperable")
+        fig_rec1.update_xaxes(range=[0, 100], ticksuffix="%")
+        fig_rec1.update_yaxes(automargin=True)
         st.plotly_chart(estilizar_grafico(fig_rec1), use_container_width=True, theme=None)
     with col_rec2:
         fig_rec2 = px.bar(
-            resumen_rec.sort_values("potencial_clp"),
-            x="potencial_clp", y="segmento", orientation="h",
+            resumen_rec.sort_values("pct_potencial"),
+            x="pct_potencial", y="segmento", orientation="h",
             color_discrete_sequence=[VINO],
-            title="Potencial CLP de recuperación",
+            text=resumen_rec.sort_values("pct_potencial")["potencial_clp"].map(lambda v: f"${v:,.0f}"),
+            title="% del potencial CLP recuperable, por segmento",
         )
-        fig_rec2.update_layout(showlegend=False)
-        fig_rec2.update_xaxes(tickprefix="$", tickformat=",.0f")
+        fig_rec2.update_traces(textposition="outside")
+        fig_rec2.update_layout(showlegend=False, yaxis_title=None, xaxis_title="% del total recuperable")
+        fig_rec2.update_xaxes(range=[0, 100], ticksuffix="%")
+        fig_rec2.update_yaxes(automargin=True)
         st.plotly_chart(estilizar_grafico(fig_rec2), use_container_width=True, theme=None)
 else:
     st.info("No hay clientes en segmentos de recuperación en este momento.")
@@ -172,26 +186,29 @@ with col_izq:
         color_continuous_scale=ESCALA_NEUTRA,
         title="Clientes por segmento",
     )
-    fig.update_layout(showlegend=False, coloraxis_showscale=False)
+    fig.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title=None)
+    fig.update_yaxes(automargin=True)
     st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
 
 with col_der:
     df_pot = pd.DataFrame({
         "Segmento":   list(stats["potencial_por_segmento"].keys()),
         "Potencial":  list(stats["potencial_por_segmento"].values()),
-    }).sort_values("Potencial", ascending=True)
+    }).sort_values("Potencial", ascending=False)
 
-    fig2 = px.bar(
-        df_pot,
-        x="Potencial",
-        y="Segmento",
-        orientation="h",
-        color="Potencial",
-        color_continuous_scale=ESCALA_ROJA,
-        title="Potencial CLP (clientes × monto mediano)",
+    colores_pot = px.colors.sample_colorscale(
+        ["#F3D6D3", ROJO, VINO],
+        [i / max(len(df_pot) - 1, 1) for i in range(len(df_pot))],
     )
-    fig2.update_layout(showlegend=False, coloraxis_showscale=False)
-    fig2.update_xaxes(tickprefix="$", tickformat=",.0f")
+
+    fig2 = px.pie(
+        df_pot,
+        names="Segmento",
+        values="Potencial",
+        title="Potencial CLP por segmento (% del total)",
+        color_discrete_sequence=colores_pot,
+    )
+    fig2.update_traces(textposition="inside", textinfo="percent+label", showlegend=False)
     st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
 
 divisor()
