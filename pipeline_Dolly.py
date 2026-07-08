@@ -358,3 +358,43 @@ def calcular_estadisticas(df):
             ).to_dict()
         ),
     }
+
+
+# =============================================================================
+# PRIORIZACIÓN DE CONTACTO
+# =============================================================================
+
+# Orden de urgencia de contacto: los "Recuperable" primero (dinero casi cerrado,
+# se enfría rápido), luego alto valor en riesgo/VIP, y así hasta los segmentos
+# de menor urgencia. Los que no aparecen aquí (por si se agrega un segmento
+# nuevo) quedan al final automáticamente.
+ORDEN_PRIORIDAD_SEGMENTOS = {
+    "Recuperable Urgente":   1,
+    "Recuperable Flete":     2,
+    "Recuperable Temprano":  3,
+    "Recuperable Bajo":      4,
+    "Alto Valor En Riesgo":  5,
+    "Cliente VIP":           6,
+    "Alto Valor Reciente":   7,
+    "Con Carrito":           8,
+    "Potencial Con Carrito": 9,
+    "Cliente Activo":        10,
+    "Alto Valor Perdido":    11,
+    "Potencial Sin Carrito": 12,
+    "Inactivo":              13,
+    "Perdido":               14,
+}
+
+
+def clientes_prioritarios(df, n=25):
+    """
+    Devuelve los `n` clientes a contactar primero: ordenados por urgencia de
+    segmento (Recuperable Urgente/Flete arriba) y, dentro del mismo nivel de
+    urgencia, por quién tuvo actividad más reciente. Pensado para que el
+    equipo tenga una lista de acción concreta al abrir el Dashboard, en vez
+    de tener que armarla manualmente desde Segmentación.
+    """
+    df = df.copy()
+    df["_prioridad"] = df["segmento"].map(ORDEN_PRIORIDAD_SEGMENTOS).fillna(99)
+    df = df.sort_values(["_prioridad", "recencia_dias"], ascending=[True, True])
+    return df.head(n).drop(columns="_prioridad")
