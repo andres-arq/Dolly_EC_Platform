@@ -154,37 +154,42 @@ def cargar_plantillas():
 
 def guardar_plantillas(plantillas):
     """Guarda las plantillas de correo localmente y las sincroniza con GitHub
-    (si está configurado) para que no se pierdan al reiniciar Streamlit Cloud."""
+    (si está configurado) para que no se pierdan al reiniciar Streamlit Cloud.
+    Devuelve (ok: bool, detalle: str) para que la página lo muestre de forma
+    persistente (no un toast que se desvanece solo)."""
     ruta = os.path.join(RUTA_BASE, "plantillas_campanas.json")
     with open(ruta, "w", encoding="utf-8") as f:
         json.dump(plantillas, f, indent=2, ensure_ascii=False)
-    _sincronizar_con_github(ruta, "plantillas_campanas.json")
+    return _sincronizar_con_github(ruta, "plantillas_campanas.json")
 
 
 def guardar_puntos_blueexpress(df_puntos):
     """Guarda el DataFrame de puntos Blue Express como CSV localmente y lo
-    sincroniza con GitHub (si está configurado)."""
+    sincroniza con GitHub (si está configurado).
+    Devuelve (ok: bool, detalle: str)."""
     ruta = os.path.join(RUTA_BASE, "blue_express_puntos.csv")
     df_puntos.to_csv(ruta, index=False)
-    _sincronizar_con_github(ruta, "blue_express_puntos.csv")
+    return _sincronizar_con_github(ruta, "blue_express_puntos.csv")
 
 
 def _sincronizar_con_github(ruta_local, ruta_repo):
     """
     Intenta subir el archivo a GitHub para que persista entre reinicios.
-    Si el módulo de sync o las credenciales no están disponibles, no rompe
-    el guardado local — solo avisa (vía st.toast) que el cambio es temporal.
+    Nunca lanza excepción — si algo falla, devuelve (False, motivo) para que
+    la página lo muestre, pero el guardado local ya se hizo de todas formas.
     """
     try:
-        import streamlit as st
         from github_sync import subir_archivo_a_github, github_configurado
-        if not github_configurado():
-            st.toast("⚠️ GitHub no configurado — cambio guardado solo localmente.", icon="⚠️")
-            return
-        ok, detalle = subir_archivo_a_github(ruta_local, ruta_repo)
-        st.toast(detalle, icon="✅" if ok else "⚠️")
-    except Exception:
-        pass  # nunca bloquear el guardado local por un problema de sincronización
+    except Exception as e:
+        return False, f"No se pudo cargar el módulo de sincronización: {e}"
+
+    if not github_configurado():
+        return False, "GitHub no configurado — cambio guardado solo localmente (se perderá al reiniciar)."
+
+    try:
+        return subir_archivo_a_github(ruta_local, ruta_repo)
+    except Exception as e:
+        return False, f"Error inesperado sincronizando con GitHub: {e}"
 
 
 # =============================================================================
