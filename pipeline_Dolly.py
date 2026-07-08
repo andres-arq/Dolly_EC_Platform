@@ -37,6 +37,19 @@ UMBRALES = {
     "monto_medio":        50_000,
 }
 
+# VTEX es una plataforma brasileña — el campo checkouttag llega en portugués.
+# Se traduce en dos puntos: al leer el CSV crudo (cargar_csv_vtex) para que
+# los datos nuevos ya nazcan en español, y de nuevo al leer el perfil ya
+# procesado (cargar_perfil_clientes) por si el archivo guardado es de una
+# versión anterior del pipeline y todavía tiene los valores en portugués.
+TRADUCCION_PASOS = {
+    "DadosPessoais":  "Datos personales",
+    "Carrinho":       "Carrito",
+    "Endereco":       "Dirección/despacho",
+    "FormaPagamento": "Forma de pago",
+    "Finalizado":     "Finalizado",
+}
+
 # =============================================================================
 # CARGA DE DATOS
 # =============================================================================
@@ -50,17 +63,6 @@ def cargar_csv_vtex(ruta=None):
         ruta = os.path.join(RUTA_BASE, "Dolly_Carritos_VTEX.csv")
 
     df = pd.read_csv(ruta, sep=';', encoding='utf-8-sig', low_memory=False)
-
-    # VTEX es una plataforma brasileña — el campo checkouttag llega en portugués.
-    # Se traduce aquí, en el único punto donde se lee el dato crudo, para que el
-    # resto del pipeline y toda la app trabajen siempre en español.
-    TRADUCCION_PASOS = {
-        "DadosPessoais": "Datos personales",
-        "Carrinho":      "Carrito",
-        "Endereco":      "Dirección/despacho",
-        "FormaPagamento":"Forma de pago",
-        "Finalizado":    "Finalizado",
-    }
 
     def extraer_paso(val):
         if pd.isna(val):
@@ -86,10 +88,15 @@ def cargar_csv_vtex(ruta=None):
 
 
 def cargar_perfil_clientes():
-    """Carga el CSV de clientes segmentados."""
+    """Carga el CSV de clientes segmentados. Traduce paso_abandono por si el
+    archivo fue generado con una versión del pipeline anterior a la traducción
+    portugués→español (defensa extra, no debería hacer nada si ya está al día)."""
     ruta = os.path.join(RUTA_BASE, "clientes_con_perfil.csv")
     if os.path.exists(ruta):
-        return pd.read_csv(ruta)
+        df = pd.read_csv(ruta)
+        if "paso_abandono" in df.columns:
+            df["paso_abandono"] = df["paso_abandono"].replace(TRADUCCION_PASOS)
+        return df
     return pd.DataFrame()
 
 
@@ -413,11 +420,39 @@ def clientes_prioritarios(df, n=25):
     """
     Devuelve los `n` clientes a contactar primero: ordenados por urgencia de
     segmento (Recuperable Urgente/Flete arriba) y, dentro del mismo nivel de
-    urgencia, por quién tuvo actividad más reciente. Pensado para que el
-    equipo tenga una lista de acción concreta al abrir el Dashboard, en vez
-    de tener que armarla manualmente desde Segmentación.
+    urgencia, por quién tuvo actividad más reciente.
+
+    Excluye siempre a los "compradores" (paso_abandono == "Finalizado") — no
+    tiene sentido priorizar el contacto de alguien que ya completó su compra;
+    solo se consideran clientes en "Desconocido" o en un paso de abandono real.
     """
     df = df.copy()
+    if "es_comprador" in df.columns:
+        df = df[df["es_comprador"] != True]  # noqa: E712 (evita ambigüedad con NaN)
     df["_prioridad"] = df["segmento"].map(ORDEN_PRIORIDAD_SEGMENTOS).fillna(99)
     df = df.sort_values(["_prioridad", "recencia_dias"], ascending=[True, True])
     return df.head(n).drop(columns="_prioridad")
+
+
+SEGMENTOS_RECUPERABLES = [
+    "Recuperable Urgente", "Recuperable Flete", "Recuperable Temprano", "Recuperable Bajo",
+]
+
+
+def resumen_recuperables(df):
+    """
+    Resumen de los 4 segmentos de recuperación de carrito — los más urgentes
+    y accionables, pero que en el gráfico general de todos los segmentos
+    quedan invisibles al lado de Perdido/Inactivo (miles de clientes vs.
+    decenas). Se calcula aparte para que tengan su propio gráfico y escala.
+    """
+    df_rec = df[df["segmento"].isin(SEGMENTOS_RECUPERABLES)]
+    if df_rec.empty:
+        return pd.DataFrame(columns=["segmento", "clientes", "potencial_clp"])
+    resumen = df_rec.groupby("segmento").agg(
+        clientes = ("userId", "count"),
+        monto_mediano = ("monto_carrito", "median"),
+    ).reset_index()
+    resumen["potencial_clp"] = resumen["clientes"] * resumen["monto_mediano"]
+    resumen["orden"] = resumen["segmento"].map(ORDEN_PRIORIDAD_SEGMENTOS)
+    return resumen.sort_values("orden").drop(columns="orden")
