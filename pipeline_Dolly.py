@@ -153,16 +153,38 @@ def cargar_plantillas():
 
 
 def guardar_plantillas(plantillas):
-    """Guarda las plantillas de correo."""
+    """Guarda las plantillas de correo localmente y las sincroniza con GitHub
+    (si está configurado) para que no se pierdan al reiniciar Streamlit Cloud."""
     ruta = os.path.join(RUTA_BASE, "plantillas_campanas.json")
     with open(ruta, "w", encoding="utf-8") as f:
         json.dump(plantillas, f, indent=2, ensure_ascii=False)
+    _sincronizar_con_github(ruta, "plantillas_campanas.json")
 
 
 def guardar_puntos_blueexpress(df_puntos):
-    """Guarda el DataFrame de puntos Blue Express como CSV."""
+    """Guarda el DataFrame de puntos Blue Express como CSV localmente y lo
+    sincroniza con GitHub (si está configurado)."""
     ruta = os.path.join(RUTA_BASE, "blue_express_puntos.csv")
     df_puntos.to_csv(ruta, index=False)
+    _sincronizar_con_github(ruta, "blue_express_puntos.csv")
+
+
+def _sincronizar_con_github(ruta_local, ruta_repo):
+    """
+    Intenta subir el archivo a GitHub para que persista entre reinicios.
+    Si el módulo de sync o las credenciales no están disponibles, no rompe
+    el guardado local — solo avisa (vía st.toast) que el cambio es temporal.
+    """
+    try:
+        import streamlit as st
+        from github_sync import subir_archivo_a_github, github_configurado
+        if not github_configurado():
+            st.toast("⚠️ GitHub no configurado — cambio guardado solo localmente.", icon="⚠️")
+            return
+        ok, detalle = subir_archivo_a_github(ruta_local, ruta_repo)
+        st.toast(detalle, icon="✅" if ok else "⚠️")
+    except Exception:
+        pass  # nunca bloquear el guardado local por un problema de sincronización
 
 
 # =============================================================================
