@@ -33,6 +33,15 @@ encabezado_pagina(
 df_puntos  = cargar_puntos_blueexpress()
 df_clientes = cargar_perfil_clientes()
 
+# Mensajes pendientes de un guardado que hizo st.rerun() justo después —
+# se guardan en session_state para que no desaparezcan antes de que se lean.
+if "mensaje_guardado" in st.session_state:
+    tipo, texto = st.session_state.pop("mensaje_guardado")
+    (st.success if tipo == "ok" else st.warning)(texto)
+if "mensaje_sync" in st.session_state:
+    ok_sync, detalle_sync = st.session_state.pop("mensaje_sync")
+    (st.success if ok_sync else st.warning)(detalle_sync)
+
 # ==============================================
 # MÉTRICAS GENERALES
 # ==============================================
@@ -99,8 +108,9 @@ df_editable = st.data_editor(
 col_btn1, col_btn2 = st.columns([1, 4])
 with col_btn1:
     if st.button("💾 Guardar cambios", type="primary", use_container_width=True):
-        guardar_puntos_blueexpress(df_editable)
-        st.success("✅ Puntos guardados correctamente.")
+        ok_sync, detalle_sync = guardar_puntos_blueexpress(df_editable)
+        st.session_state["mensaje_guardado"] = ("ok", "✅ Puntos guardados correctamente.")
+        st.session_state["mensaje_sync"] = (ok_sync, detalle_sync)
         st.rerun()
 
 divisor()
@@ -136,8 +146,9 @@ with st.form("form_nuevo_punto"):
                 "estado":   nuevo_estado,
             }])
             df_actualizado = pd.concat([df_puntos, nuevo], ignore_index=True)
-            guardar_puntos_blueexpress(df_actualizado)
-            st.success(f"✅ Punto '{nuevo_nombre}' agregado correctamente.")
+            ok_sync, detalle_sync = guardar_puntos_blueexpress(df_actualizado)
+            st.session_state["mensaje_guardado"] = ("ok", f"✅ Punto '{nuevo_nombre}' agregado correctamente.")
+            st.session_state["mensaje_sync"] = (ok_sync, detalle_sync)
             st.rerun()
         else:
             st.error("❌ Nombre y ciudad son obligatorios.")
