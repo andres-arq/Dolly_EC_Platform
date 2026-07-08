@@ -10,7 +10,7 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pipeline_Dolly import cargar_perfil_clientes, calcular_estadisticas, PARAMS
+from pipeline_Dolly import cargar_perfil_clientes, calcular_estadisticas, clientes_prioritarios, PARAMS
 from estilo_Dolly import (
     aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
     NEGRO, ROJO, VINO, GRIS, ESCALA_NEUTRA, ESCALA_ROJA,
@@ -131,6 +131,42 @@ with col_der2:
         annotation_text=f"Umbral flete ${PARAMS['ticket_umbral_flete_gratis']:,}",
     )
     st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
+
+divisor()
+
+# ==============================================
+# CLIENTES PRIORITARIOS Y RECIENTES
+# ==============================================
+st.subheader("🎯 Clientes prioritarios ahora")
+st.caption(
+    "Ordenados primero por urgencia de segmento (Recuperable Urgente/Flete arriba) "
+    "y, dentro de cada nivel, por quién tuvo actividad más reciente. Es la lista "
+    "de a quién contactar hoy."
+)
+
+cantidad = st.slider("Cantidad de clientes a mostrar", min_value=10, max_value=100, value=25, step=5)
+df_prioritarios = clientes_prioritarios(df, n=cantidad)
+
+columnas_prioridad = [
+    "userId", "segmento", "recencia_dias", "monto_carrito",
+    "paso_abandono", "es_comprador", "tiene_carrito_abandonado_historico",
+    "tiene_telefono", "tiene_newsletter",
+]
+columnas_existentes_prioridad = [c for c in columnas_prioridad if c in df_prioritarios.columns]
+
+st.dataframe(
+    df_prioritarios[columnas_existentes_prioridad],
+    use_container_width=True,
+    hide_index=True,
+)
+
+csv_prioritarios = df_prioritarios[columnas_existentes_prioridad].to_csv(index=False, encoding="utf-8-sig")
+st.download_button(
+    label="⬇️  Descargar lista de contacto prioritario",
+    data=csv_prioritarios,
+    file_name="dolly_clientes_prioritarios.csv",
+    mime="text/csv",
+)
 
 divisor()
 
