@@ -5,15 +5,17 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pipeline_Dolly import cargar_perfil_clientes, calcular_estadisticas, clientes_prioritarios, PARAMS
+from pipeline_Dolly import (
+    cargar_perfil_clientes, calcular_estadisticas,
+    clientes_prioritarios, resumen_recuperables, PARAMS,
+)
 from estilo_Dolly import (
     aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
-    NEGRO, ROJO, VINO, GRIS, ESCALA_NEUTRA, ESCALA_ROJA,
+    NEGRO, ROJO, VINO, GRIS, CARD, BORDE, TEXTO_SECUNDARIO, ESCALA_NEUTRA, ESCALA_ROJA,
 )
 
 st.set_page_config(page_title="Dashboard — Dolly", page_icon="📊", layout="wide")
@@ -33,25 +35,122 @@ if df.empty:
     st.stop()
 
 stats = calcular_estadisticas(df)
+resumen_rec = resumen_recuperables(df)
+total_recuperables = int(resumen_rec["clientes"].sum()) if not resumen_rec.empty else 0
+
+# ==============================================
+# CLIENTE MÁS PRIORITARIO AHORA
+# ==============================================
+top_cliente_df = clientes_prioritarios(df, n=1)
+
+if not top_cliente_df.empty:
+    c = top_cliente_df.iloc[0]
+
+    def _o_sin_dato(valor):
+        return valor if pd.notna(valor) and str(valor).strip() not in ("", "nan", "None") else "Sin dato"
+
+    producto_txt = _o_sin_dato(c.get("marca_producto"))
+    categoria_txt = _o_sin_dato(c.get("categoria_producto"))
+    sku_txt = _o_sin_dato(c.get("producto_id"))
+
+    st.markdown(f"""
+        <div style="background:{CARD}; border:0.5px solid {BORDE}; border-left:5px solid {ROJO};
+                    border-radius:0 12px 12px 0; padding:20px 24px; margin-bottom:8px;">
+            <div style="font-size:11px; letter-spacing:0.08em; color:{ROJO}; font-weight:600;
+                        text-transform:uppercase; margin-bottom:6px;">
+                🔴 Cliente más prioritario ahora
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <div style="font-size:20px; font-weight:700; color:{NEGRO};">{c.get('segmento','—')}</div>
+                    <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">
+                        userId: <code>{c.get('userId','—')}</code> · paso: {c.get('paso_abandono','—')} ·
+                        hace {c.get('recencia_dias','—')} días
+                    </div>
+                    <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:4px;">
+                        Interés: <b style="color:{NEGRO};">{producto_txt}</b> — {categoria_txt}
+                        (SKU {sku_txt})
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:26px; font-weight:700; color:{ROJO};">${c.get('monto_carrito',0):,.0f}</div>
+                    <div style="font-size:12px; color:{TEXTO_SECUNDARIO};">
+                        {'📞 Teléfono' if c.get('tiene_telefono') else '—'} ·
+                        {'📧 Newsletter' if c.get('tiene_newsletter') else '—'}
+                    </div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    st.caption("Ve a **Perfil de Cliente** y busca este userId para contactarlo. Excluye siempre a quienes ya compraron (paso \"Finalizado\").")
+else:
+    st.info("No hay clientes pendientes de contacto en este momento — todos están en \"Finalizado\" o sin actividad reciente.")
+
+divisor()
 
 # ==============================================
 # KPI CARDS
 # ==============================================
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     kpi_card("Total clientes", f"{stats['total_clientes']:,}")
 
 with col2:
-    kpi_card("Monto mediano carrito", f"${stats['monto_mediano']:,.0f}")
+    kpi_card("Clientes recuperables ahora", f"{total_recuperables:,}", color=ROJO)
 
 with col3:
-    kpi_card("% Contactables (newsletter)", f"{stats['pct_contactables']:.1f}%", color=GRIS)
+    kpi_card("Monto mediano carrito", f"${stats['monto_mediano']:,.0f}")
 
 with col4:
-    kpi_card("% Sobre umbral flete gratis", f"{stats['pct_sobre_umbral']:.1f}%", color=ROJO)
+    kpi_card("% Contactables (newsletter)", f"{stats['pct_contactables']:.1f}%", color=GRIS)
+
+with col5:
+    kpi_card("% Sobre umbral flete gratis", f"{stats['pct_sobre_umbral']:.1f}%", color=VINO)
 
 divisor()
+
+# ==============================================
+# OPORTUNIDADES DE RECUPERACIÓN INMEDIATA
+# ==============================================
+st.subheader("🎯 Oportunidades de recuperación inmediata")
+st.caption(
+    "Los 4 segmentos de recuperación de carrito — son pocos clientes frente al total de "
+    "la base, por eso quedan invisibles en el gráfico general de abajo. Acá tienen su "
+    "propia escala para que se vean."
+)
+
+if not resumen_rec.empty:
+    col_rec1, col_rec2 = st.columns(2)
+    with col_rec1:
+        fig_rec1 = px.bar(
+            resumen_rec.sort_values("clientes"),
+            x="clientes", y="segmento", orientation="h",
+            color_discrete_sequence=[ROJO],
+            title="Clientes por segmento recuperable",
+        )
+        fig_rec1.update_layout(showlegend=False)
+        st.plotly_chart(estilizar_grafico(fig_rec1), use_container_width=True, theme=None)
+    with col_rec2:
+        fig_rec2 = px.bar(
+            resumen_rec.sort_values("potencial_clp"),
+            x="potencial_clp", y="segmento", orientation="h",
+            color_discrete_sequence=[VINO],
+            title="Potencial CLP de recuperación",
+        )
+        fig_rec2.update_layout(showlegend=False)
+        fig_rec2.update_xaxes(tickprefix="$", tickformat=",.0f")
+        st.plotly_chart(estilizar_grafico(fig_rec2), use_container_width=True, theme=None)
+else:
+    st.info("No hay clientes en segmentos de recuperación en este momento.")
+
+divisor()
+
+# ==============================================
+# PANORAMA GENERAL — TODOS LOS SEGMENTOS
+# ==============================================
+st.subheader("Panorama general de la base")
+st.caption("Todos los segmentos, incluyendo los de bajo volumen mostrados arriba.")
 
 # ==============================================
 # GRÁFICOS
@@ -59,7 +158,6 @@ divisor()
 col_izq, col_der = st.columns(2)
 
 with col_izq:
-    st.subheader("Distribución por segmento")
     df_seg = pd.DataFrame({
         "Segmento": list(stats["clientes_por_segmento"].keys()),
         "Clientes": list(stats["clientes_por_segmento"].values()),
@@ -78,7 +176,6 @@ with col_izq:
     st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
 
 with col_der:
-    st.subheader("Potencial de facturación por segmento")
     df_pot = pd.DataFrame({
         "Segmento":   list(stats["potencial_por_segmento"].keys()),
         "Potencial":  list(stats["potencial_por_segmento"].values()),
