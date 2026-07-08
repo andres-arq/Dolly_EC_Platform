@@ -35,6 +35,28 @@ if df.empty:
     st.warning("⚠️  No hay datos disponibles. Ve a **Actualizar Data** para cargar el CSV de VTEX.")
     st.stop()
 
+# ==============================================
+# FILTRO DE RECENCIA (afecta a todo el Dashboard)
+# ==============================================
+recencia_min, recencia_max = int(df["recencia_dias"].min()), int(df["recencia_dias"].max())
+rango_recencia = st.slider(
+    "Filtrar por recencia (días desde última sesión)",
+    min_value=recencia_min,
+    max_value=recencia_max,
+    value=(recencia_min, recencia_max),
+)
+df = df[
+    (df["recencia_dias"] >= rango_recencia[0]) &
+    (df["recencia_dias"] <= rango_recencia[1])
+]
+st.caption(f"{len(df):,} clientes dentro del rango seleccionado.")
+
+if df.empty:
+    st.info("No hay clientes en el rango de recencia seleccionado.")
+    st.stop()
+
+divisor()
+
 stats = calcular_estadisticas(df)
 resumen_rec = resumen_recuperables(df)
 total_recuperables = int(resumen_rec["clientes"].sum()) if not resumen_rec.empty else 0
