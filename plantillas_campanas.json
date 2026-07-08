@@ -1,0 +1,86 @@
+{
+  "Cliente VIP": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Cliente VIP",
+    "mensaje": "Hola de nuevo!\n\nTu preferencia significa mucho para nosotros.\n\nComo agradecimiento, tienes despacho prioritario garantizado en tu próxima compra.\n\nTe esperamos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Cliente Activo": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Cliente Activo",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Con Carrito": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Con Carrito",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Alto Valor Reciente": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Alto Valor Reciente",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Alto Valor En Riesgo": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Alto Valor En Riesgo",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Alto Valor Perdido": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Alto Valor Perdido",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Recuperable Urgente": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Recuperable Urgente",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Recuperable Flete": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Recuperable Flete",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Recuperable Temprano": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Recuperable Temprano",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Recuperable Bajo": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Recuperable Bajo",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Potencial Con Carrito": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Potencial Con Carrito",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Potencial Sin Carrito": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Potencial Sin Carrito",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Inactivo": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Inactivo",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  },
+  "Perdido": {
+    "activa": false,
+    "asunto": "Te echamos de menos, Perdido",
+    "mensaje": "Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    "ultimo_envio": null
+  }
+}
