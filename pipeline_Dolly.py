@@ -462,6 +462,35 @@ def segmentar_clientes(df_raw):
     # Producto de interés: si compró, el producto comprado; si no, el último
     # producto visitado (el dato más cercano a "qué tenía en el carrito" que
     # entrega VTEX — no existe un campo explícito de ítems del carrito).
+    #
+    # Estas columnas vienen en el mismo formato JSON que checkouttag (con
+    # "DisplayValue" adentro, más metadata de "Scores" que no se necesita) —
+    # hay que parsearlas igual que extraer_paso(), si no se guarda el JSON
+    # completo como si fuera el nombre del producto/marca.
+    def _extraer_display_value(val):
+        if pd.isna(val):
+            return None
+        try:
+            limpio = str(val).replace('""', '"').strip()
+            if limpio.startswith('"') and limpio.endswith('"'):
+                limpio = limpio[1:-1]
+            parsed = json.loads(limpio)
+            resultado = parsed.get("DisplayValue")
+            if resultado and str(resultado).lower() != "null":
+                return str(resultado)
+            return None
+        except Exception:
+            return None
+
+    for _col in ["productPurchasedTag", "productVisitedTag",
+                 "categoryPurchasedTag", "categoryVisitedTag",
+                 "brandPurchasedTag", "brandVisitedTag",
+                 "departmentVisitedTag"]:
+        if _col in df.columns:
+            df[_col] = df[_col].apply(_extraer_display_value)
+        else:
+            df[_col] = None
+
     def _producto_comprado_o_visitado(row):
         if row.get("es_comprador"):
             return row.get("productPurchasedTag")
@@ -477,10 +506,10 @@ def segmentar_clientes(df_raw):
             return row.get("brandPurchasedTag")
         return row.get("brandVisitedTag")
 
-    df["producto_id"]          = df.apply(_producto_comprado_o_visitado, axis=1)
-    df["categoria_producto"]   = df.apply(_categoria_comprada_o_visitada, axis=1)
-    df["marca_producto"]       = df.apply(_marca_comprada_o_visitada, axis=1)
-    df["departamento_producto"] = df["departmentVisitedTag"] if "departmentVisitedTag" in df.columns else None
+    df["producto_id"]           = df.apply(_producto_comprado_o_visitado, axis=1)
+    df["categoria_producto"]    = df.apply(_categoria_comprada_o_visitada, axis=1)
+    df["marca_producto"]        = df.apply(_marca_comprada_o_visitada, axis=1)
+    df["departamento_producto"] = df["departmentVisitedTag"]
 
     df["segmento"] = df.apply(_asignar_segmento, axis=1)
     df["segmento_reglas"] = df["segmento"]
