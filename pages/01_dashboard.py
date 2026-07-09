@@ -183,6 +183,43 @@ else:
 divisor()
 
 # ==============================================
+# CLIENTES PRIORITARIOS Y RECIENTES
+# ==============================================
+st.subheader("🎯 Clientes prioritarios ahora")
+st.caption(
+    "Ordenados primero por urgencia de segmento (Recuperable Urgente/Flete arriba) "
+    "y, dentro de cada nivel, por quién tuvo actividad más reciente. Es la lista "
+    "de a quién contactar hoy."
+)
+
+cantidad = st.slider("Cantidad de clientes a mostrar", min_value=10, max_value=100, value=25, step=5)
+df_prioritarios = clientes_prioritarios(df, n=cantidad)
+
+columnas_prioridad = [
+    "userId", "segmento", "recencia_dias", "monto_carrito",
+    "producto_id", "categoria_producto", "marca_producto",
+    "paso_abandono", "es_comprador", "tiene_carrito_abandonado_historico",
+    "tiene_telefono", "tiene_newsletter",
+]
+columnas_existentes_prioridad = [c for c in columnas_prioridad if c in df_prioritarios.columns]
+
+st.dataframe(
+    df_prioritarios[columnas_existentes_prioridad],
+    use_container_width=True,
+    hide_index=True,
+)
+
+csv_prioritarios = df_prioritarios[columnas_existentes_prioridad].to_csv(index=False, encoding="utf-8-sig")
+st.download_button(
+    label="⬇️  Descargar lista de contacto prioritario",
+    data=csv_prioritarios,
+    file_name="dolly_clientes_prioritarios.csv",
+    mime="text/csv",
+)
+
+divisor()
+
+# ==============================================
 # PANORAMA GENERAL — TODOS LOS SEGMENTOS
 # ==============================================
 st.subheader("Panorama general de la base")
@@ -264,6 +301,59 @@ with st.expander("📖 ¿Qué significa cada segmento? (explicación + recomenda
 
 divisor()
 
+# ==============================================
+# FLUJO DE CLASIFICACIÓN — CÓMO AVANZA UN CLIENTE ENTRE SEGMENTOS
+# ==============================================
+st.subheader("🧭 Cómo avanza un cliente entre segmentos")
+st.caption(
+    "Haz clic en cada segmento para ver su detalle. Es una simplificación en 3 rutas de "
+    "la misma lógica que usa el sistema para clasificar — en la realidad es un árbol de "
+    "decisión, no una sola línea, pero estas son las rutas que más se repiten."
+)
+
+
+def _paso_flujo(nombre_segmento):
+    descripcion, recomendacion = DESCRIPCION_SEGMENTOS.get(nombre_segmento, ("", ""))
+    with st.expander(nombre_segmento):
+        st.markdown(f"**Qué significa:** {descripcion}")
+        st.markdown(f"**Recomendación:** {recomendacion}")
+
+
+def _fila_flujo(secuencia):
+    n = len(secuencia)
+    anchos = []
+    for _ in range(n):
+        anchos += [5, 1]
+    anchos = anchos[:-1]
+    cols = st.columns(anchos)
+    idx = 0
+    for i, seg in enumerate(secuencia):
+        with cols[idx]:
+            _paso_flujo(seg)
+        idx += 1
+        if i < n - 1:
+            with cols[idx]:
+                st.markdown(
+                    "<div style='text-align:center; font-size:22px; padding-top:18px; color:%s;'>→</div>" % ROJO,
+                    unsafe_allow_html=True,
+                )
+            idx += 1
+
+
+st.markdown("**Ruta 1 — Cliente de alto monto (≥$100.000), a medida que pasa el tiempo sin volver a comprar**")
+_fila_flujo(["Cliente VIP", "Alto Valor Reciente", "Alto Valor En Riesgo", "Alto Valor Perdido"])
+
+st.markdown("**Ruta 2 — Actividad general, a medida que pasa el tiempo sin actividad**")
+_fila_flujo(["Potencial Sin Carrito", "Potencial Con Carrito", "Cliente Activo", "Inactivo", "Perdido"])
+
+st.markdown(
+    "**Ruta 3 — Abandonó el checkout** *(no es secuencial — cada cliente cae en uno solo, "
+    "según el paso exacto donde se detuvo)*"
+)
+_fila_flujo(["Recuperable Temprano", "Recuperable Bajo", "Recuperable Flete", "Recuperable Urgente"])
+
+divisor()
+
 col_izq2, col_der2 = st.columns(2, gap="large")
 
 with col_izq2:
@@ -298,41 +388,6 @@ with col_der2:
     st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
 
 divisor()
-
-# ==============================================
-# CLIENTES PRIORITARIOS Y RECIENTES
-# ==============================================
-st.subheader("🎯 Clientes prioritarios ahora")
-st.caption(
-    "Ordenados primero por urgencia de segmento (Recuperable Urgente/Flete arriba) "
-    "y, dentro de cada nivel, por quién tuvo actividad más reciente. Es la lista "
-    "de a quién contactar hoy."
-)
-
-cantidad = st.slider("Cantidad de clientes a mostrar", min_value=10, max_value=100, value=25, step=5)
-df_prioritarios = clientes_prioritarios(df, n=cantidad)
-
-columnas_prioridad = [
-    "userId", "segmento", "recencia_dias", "monto_carrito",
-    "producto_id", "categoria_producto", "marca_producto",
-    "paso_abandono", "es_comprador", "tiene_carrito_abandonado_historico",
-    "tiene_telefono", "tiene_newsletter",
-]
-columnas_existentes_prioridad = [c for c in columnas_prioridad if c in df_prioritarios.columns]
-
-st.dataframe(
-    df_prioritarios[columnas_existentes_prioridad],
-    use_container_width=True,
-    hide_index=True,
-)
-
-csv_prioritarios = df_prioritarios[columnas_existentes_prioridad].to_csv(index=False, encoding="utf-8-sig")
-st.download_button(
-    label="⬇️  Descargar lista de contacto prioritario",
-    data=csv_prioritarios,
-    file_name="dolly_clientes_prioritarios.csv",
-    mime="text/csv",
-)
 
 divisor()
 
