@@ -181,147 +181,138 @@ def _migrar_plantillas_a_variantes(plantillas):
 
 def _plantillas_por_defecto():
     """
-    Plantillas por defecto — tono cálido y familiar (Dolly es una tienda de
-    ropa del sur de Chile, con una identidad cercana, no un outlet agresivo).
-
-    Reglas aplicadas:
-    - Sin descuentos ni beneficios no acordados con el partner (igual que antes).
-    - Sin urgencia agresiva ni presión de escasez ("se agota", cuentas regresivas,
-      "otros están comprando esto ahora") — se reemplaza por recordatorios
-      calmados que igual invitan a actuar, sin generar ansiedad.
-    - Sin mencionar problemas ni pedir que el cliente explique qué "falló" o
-      "qué le hizo dudar" — nunca se nombra el inconveniente, solo se invita
-      a continuar.
-    - Como ya no se testea "urgencia vs. calma" (ambas variantes son calmadas),
-      las hipótesis A/B se rediseñaron para testear otra dimensión real:
-      enfoque en el producto vs. enfoque en la cercanía/familia, o
-      recordatorio directo vs. acompañamiento — sigue siendo un test válido.
+    Plantillas por defecto — 100% genéricas, sin variables de personalización
+    ({{nombre}}, {{monto}}, etc.). No se cuenta con el dato del nombre real
+    de cada cliente, así que las plantillas están escritas para funcionar
+    igual de bien sin ninguna variable — mismo tono cálido y familiar, sin
+    descuentos ni beneficios no acordados, sin presión de escasez y sin
+    mencionar problemas.
     """
     datos = {
         "Recuperable Urgente": (
             "Enfoque en el producto (A) vs. Enfoque en acompañamiento sin mencionar el problema de pago (B)",
-            ("Enfoque en el producto", "{{nombre}}, tus productos te están esperando",
-             "Hola {{nombre}},\nQueríamos avisarte que tus productos ({{monto}}) siguen guardados en tu carrito, listos para cuando quieras.\nSi todavía te interesan, puedes terminar tu compra con calma, cuando gustes.",
+            ("Enfoque en el producto", "Tus productos te están esperando",
+             "Hola,\nQueríamos avisarte que tus productos siguen guardados en tu carrito, listos para cuando quieras.\nSi todavía te interesan, puedes terminar tu compra con calma, cuando gustes.",
              "Ver mi carrito"),
-            ("Acompañamiento", "{{nombre}}, ¿seguimos con tu compra?",
-             "Hola {{nombre}},\nNotamos que tu compra de {{monto}} quedó a mitad de camino.\nSi quieres, puedes completarla con el medio de pago que más te acomode: tarjeta, transferencia o Webpay. Estamos para ayudarte si lo necesitas.",
+            ("Acompañamiento", "¿Seguimos con tu compra?",
+             "Hola,\nNotamos que tu compra quedó a mitad de camino.\nSi quieres, puedes completarla con el medio de pago que más te acomode: tarjeta, transferencia o Webpay. Estamos para ayudarte si lo necesitas.",
              "Completar mi compra"),
         ),
         "Recuperable Flete": (
             "Enfoque en revisar el despacho con calma (A) vs. Transparencia total sin presión (B)",
-            ("Revisar el despacho con calma", "{{nombre}}, tu despacho está listo para revisarlo",
-             "Hola {{nombre}},\nTus productos ({{monto}}) siguen en tu carrito.\nCuando quieras, puedes revisar el costo de despacho a tu domicilio antes de decidir con toda la calma del mundo.",
+            ("Revisar el despacho con calma", "Tu despacho está listo para revisarlo",
+             "Hola,\nTus productos siguen en tu carrito.\nCuando quieras, puedes revisar el costo de despacho a tu domicilio antes de decidir con toda la calma del mundo.",
              "Ver el costo de mi despacho"),
             ("Transparencia sin presión", "Así calculamos tu despacho, sin sorpresas",
-             "Hola {{nombre}},\nSabemos que el costo de envío es algo que muchas veces se quiere revisar antes de decidir.\nPor eso te dejamos el detalle exacto, para que tengas toda la información. Tu carrito de {{monto}} sigue disponible para cuando quieras.",
+             "Hola,\nSabemos que el costo de envío es algo que muchas veces se quiere revisar antes de decidir.\nPor eso te dejamos el detalle exacto, para que tengas toda la información. Tu carrito sigue disponible para cuando quieras.",
              "Ver el detalle de mi despacho"),
         ),
         "Recuperable Temprano": (
             "Recordatorio simple sobre el producto (A) vs. Foco en flexibilidad y sin apuro (B)",
-            ("Recordatorio simple", "{{nombre}}, dejaste algunas cosas lindas en tu carrito",
-             "Hola {{nombre}},\nHace poco visitaste DOLLY y dejaste productos guardados por {{monto}}.\nSiguen ahí, esperando por si quieres darles una segunda mirada.",
+            ("Recordatorio simple", "Dejaste algunas cosas lindas en tu carrito",
+             "Hola,\nHace poco visitaste DOLLY y dejaste algunos productos guardados.\nSiguen ahí, esperando por si quieres darles una segunda mirada.",
              "Ver mi carrito"),
             ("Sin apuro", "Guardamos tu carrito por si necesitas más tiempo",
-             "Hola {{nombre}},\nSabemos que a veces simplemente falta tiempo para decidir con calma o conversarlo en casa.\nPor eso dejamos tu carrito guardado, para que lo retomes cuando quieras, sin ningún apuro.",
+             "Hola,\nSabemos que a veces simplemente falta tiempo para decidir con calma o conversarlo en casa.\nPor eso dejamos tu carrito guardado, para que lo retomes cuando quieras, sin ningún apuro.",
              "Retomar mi carrito cuando quiera"),
         ),
         "Recuperable Bajo": (
             "Recordatorio simple y cercano (A) vs. Acompañamiento cercano, sin pedir explicaciones (B)",
-            ("Recordatorio cercano", "{{nombre}}, tus productos DOLLY siguen ahí",
-             "Hola {{nombre}},\nTodavía tienes productos guardados en tu carrito ({{monto}}).\nCuando quieras retomarlos, ahí van a estar esperándote, sin ningún apuro de nuestra parte.",
+            ("Recordatorio cercano", "Tus productos DOLLY siguen ahí",
+             "Hola,\nTodavía tienes productos guardados en tu carrito.\nCuando quieras retomarlos, ahí van a estar esperándote, sin ningún apuro de nuestra parte.",
              "Ver mi carrito"),
-            ("Acompañamiento cercano", "{{nombre}}, estamos aquí si nos necesitas",
-             "Hola {{nombre}},\nVimos que tu compra de {{monto}} quedó pendiente.\nSi tienes alguna consulta sobre tallas, colores o despacho, con mucho gusto te ayudamos a encontrar lo que buscas.",
+            ("Acompañamiento cercano", "Estamos aquí si nos necesitas",
+             "Hola,\nVimos que tu compra quedó pendiente.\nSi tienes alguna consulta sobre tallas, colores o despacho, con mucho gusto te ayudamos a encontrar lo que buscas.",
              "Conversar con nosotros"),
         ),
         "Cliente VIP": (
             "Acceso anticipado cálido (A) vs. Gratitud y cercanía familiar (B) — beneficios NO monetarios, confirmar con Thomas",
-            ("Acceso anticipado cálido", "{{nombre}}, algo especial para ti antes que nadie",
-             "Hola {{nombre}},\nComo agradecimiento por ser parte de nuestra familia DOLLY, queremos mostrarte nuestras próximas novedades antes que al resto de nuestros clientes.",
+            ("Acceso anticipado cálido", "Algo especial para ti antes que nadie",
+             "Hola,\nComo agradecimiento por ser parte de nuestra familia DOLLY, queremos mostrarte nuestras próximas novedades antes que al resto de nuestros clientes.",
              "Ver novedades exclusivas"),
-            ("Gratitud y cercanía", "Gracias por confiar en DOLLY, {{nombre}}",
-             "Hola {{nombre}},\nTu preferencia significa mucho para nuestra familia.\nComo muestra de cariño, tus pedidos siempre van a tener preparación prioritaria en nuestra bodega.",
+            ("Gratitud y cercanía", "Gracias por confiar en DOLLY",
+             "Hola,\nTu preferencia significa mucho para nuestra familia.\nComo muestra de cariño, tus pedidos siempre van a tener preparación prioritaria en nuestra bodega.",
              "Conocer más sobre DOLLY"),
         ),
         "Cliente Activo": (
             "Foco en el producto nuevo (A) vs. Foco en la relación de largo plazo (B)",
-            ("Foco en producto", "{{nombre}}, esto es lo nuevo en DOLLY",
-             "Hola {{nombre}},\nLlegaron productos nuevos pensados para ti, que ya conoces lo mejor de nuestra tienda.\nTe invitamos a darles una mirada con calma.",
+            ("Foco en producto", "Esto es lo nuevo en DOLLY",
+             "Hola,\nLlegaron productos nuevos pensados para ti, que ya conoces lo mejor de nuestra tienda.\nTe invitamos a darles una mirada con calma.",
              "Ver lo nuevo"),
             ("Relación de largo plazo", "Gracias por seguir siendo parte de la familia DOLLY",
-             "Hola {{nombre}},\nComo cliente frecuente, quisimos que fueras de los primeros en conocer las novedades que preparamos con mucho cariño.\nGracias por seguir eligiéndonos.",
+             "Hola,\nComo cliente frecuente, quisimos que fueras de los primeros en conocer las novedades que preparamos con mucho cariño.\nGracias por seguir eligiéndonos.",
              "Ver novedades"),
         ),
         "Alto Valor Reciente": (
             "Cuidado del producto (A) vs. Sugerencias que complementan tu compra (B)",
             ("Cuidado del producto", "Todo lo que puede servirte sobre tu compra",
-             "Hola {{nombre}},\nGracias por tu compra reciente de {{monto}}.\nTe dejamos algunos tips de cuidado y uso para que le saques el máximo provecho a tus productos, directo de nuestro equipo.",
+             "Hola,\nGracias por tu compra reciente.\nTe dejamos algunos tips de cuidado y uso para que le saques el máximo provecho a tus productos, directo de nuestro equipo.",
              "Ver guía de cuidado"),
-            ("Sugerencias complementarias", "{{nombre}}, esto combina perfecto con tu compra",
-             "Hola {{nombre}},\nHace poco elegiste comprar en DOLLY.\nSeleccionamos algunos productos que complementan justo lo que llevaste, para que armes el look completo si te interesa.",
+            ("Sugerencias complementarias", "Esto combina perfecto con tu compra",
+             "Hola,\nHace poco elegiste comprar en DOLLY.\nSeleccionamos algunos productos que complementan justo lo que llevaste, para que armes el look completo si te interesa.",
              "Ver productos sugeridos"),
         ),
         "Alto Valor En Riesgo": (
             "Curaduría personalizada por historial (A) vs. Reconexión relacional cálida (B)",
-            ("Curaduría personalizada", "{{nombre}}, preparamos una selección pensando en ti",
-             "Hola {{nombre}},\nComo uno de nuestros clientes más queridos, armamos una selección con las categorías y estilos que más te han gustado en tus visitas anteriores.",
+            ("Curaduría personalizada", "Preparamos una selección pensando en ti",
+             "Hola,\nComo uno de nuestros clientes más queridos, armamos una selección con las categorías y estilos que más te han gustado en tus visitas anteriores.",
              "Ver mi selección"),
             ("Reconexión cálida", "Nos encantaría volver a acompañarte",
-             "Hola {{nombre}},\nDurante mucho tiempo fuiste parte importante de nuestra familia DOLLY.\nNos encantaría seguir acompañándote en tus próximas compras, con las novedades que hemos preparado.",
+             "Hola,\nDurante mucho tiempo fuiste parte importante de nuestra familia DOLLY.\nNos encantaría seguir acompañándote en tus próximas compras, con las novedades que hemos preparado.",
              "Ver qué hay de nuevo"),
         ),
         "Alto Valor Perdido": (
             "Evolución de marca y prueba social (A) vs. Reconexión emocional cálida (B)",
-            ("Evolución de marca", "{{nombre}}, redescubre lo que construimos para ti",
-             "Hola {{nombre}},\nEn algún momento fuiste uno de nuestros clientes más queridos y valoramos mucho esa etapa.\nHemos seguido mejorando nuestros materiales y nuestro servicio, y te invitamos a conocer los productos favoritos de nuestra comunidad actual.",
+            ("Evolución de marca", "Redescubre lo que construimos para ti",
+             "Hola,\nEn algún momento fuiste uno de nuestros clientes más queridos y valoramos mucho esa etapa.\nHemos seguido mejorando nuestros materiales y nuestro servicio, y te invitamos a conocer los productos favoritos de nuestra comunidad actual.",
              "Ver los favoritos de la temporada"),
-            ("Reconexión emocional", "Te extrañamos en DOLLY, {{nombre}}",
-             "Hola {{nombre}},\nEn algún momento fuiste parte importante de nuestra familia DOLLY.\nNos encantaría reencontrarnos y mostrarte todo lo que hemos cuidado y mejorado desde tu última visita.",
+            ("Reconexión emocional", "Te extrañamos en DOLLY",
+             "Hola,\nEn algún momento fuiste parte importante de nuestra familia DOLLY.\nNos encantaría reencontrarnos y mostrarte todo lo que hemos cuidado y mejorado desde tu última visita.",
              "Volver a visitarnos"),
         ),
         "Con Carrito": (
             "Recordatorio directo y simple (A) vs. Acompañamiento cercano ante dudas (B)",
-            ("Recordatorio simple", "{{nombre}}, tu carrito sigue esperándote",
-             "Hola {{nombre}},\nTus productos ({{monto}}) siguen guardados en tu carrito.\nCuando quieras, puedes retomar tu compra sin ningún apuro.",
+            ("Recordatorio simple", "Tu carrito sigue esperándote",
+             "Hola,\nTus productos siguen guardados en tu carrito.\nCuando quieras, puedes retomar tu compra sin ningún apuro.",
              "Ver mi carrito"),
             ("Acompañamiento cercano", "¿Te ayudamos con tu compra en DOLLY?",
-             "Hola {{nombre}},\nVimos que tienes productos guardados en tu carrito ({{monto}}).\nSi tienes dudas sobre talla, color o despacho, con gusto te ayudamos a decidir con calma.",
+             "Hola,\nVimos que tienes productos guardados en tu carrito.\nSi tienes dudas sobre talla, color o despacho, con gusto te ayudamos a decidir con calma.",
              "Conversar con nosotros"),
         ),
         "Potencial Con Carrito": (
             "Cierre simple y cálido (A) vs. Confianza y cercanía para tu primera compra (B)",
-            ("Cierre simple", "{{nombre}}, tu primera compra está lista para confirmarse",
-             "Hola {{nombre}},\nYa encontraste productos que te interesan ({{monto}}).\nCuando quieras, puedes confirmar tu pedido para recibirlo en casa, con toda la calma que necesites.",
+            ("Cierre simple", "Tu primera compra está lista para confirmarse",
+             "Hola,\nYa encontraste productos que te interesan.\nCuando quieras, puedes confirmar tu pedido para recibirlo en casa, con toda la calma que necesites.",
              "Confirmar mi pedido"),
-            ("Confianza y cercanía", "{{nombre}}, compra con toda la tranquilidad en DOLLY",
-             "Hola {{nombre}},\nYa armaste tu carrito en DOLLY. Queremos que tu primera experiencia sea muy grata: contamos con pasarela de pago segura, seguimiento de tu pedido y una política de cambios simple y cercana, como nos gusta hacer las cosas.",
+            ("Confianza y cercanía", "Compra con toda la tranquilidad en DOLLY",
+             "Hola,\nYa armaste tu carrito en DOLLY. Queremos que tu primera experiencia sea muy grata: contamos con pasarela de pago segura, seguimiento de tu pedido y una política de cambios simple y cercana, como nos gusta hacer las cosas.",
              "Finalizar mi compra"),
         ),
         "Potencial Sin Carrito": (
             "Descubrimiento por popularidad (A) vs. Invitación personalizada y cercana (B)",
             ("Descubrimiento por popularidad", "Lo más elegido por nuestros clientes esta semana",
-             "Hola {{nombre}},\nSabemos que ya conoces DOLLY.\nPara ayudarte a inspirarte, reunimos los productos favoritos de esta temporada, elegidos por cientos de clientes como tú.",
+             "Hola,\nSabemos que ya conoces DOLLY.\nPara ayudarte a inspirarte, reunimos los productos favoritos de esta temporada, elegidos por cientos de clientes.",
              "Ver los favoritos de la semana"),
             ("Invitación cercana", "Te ayudamos a encontrar lo tuyo",
-             "Hola {{nombre}},\nQueremos ayudarte a encontrar productos pensados especialmente para ti y tu estilo de vida, con la misma cercanía de siempre.",
+             "Hola,\nQueremos ayudarte a encontrar productos pensados para ti y tu estilo de vida, con la misma cercanía de siempre.",
              "Explorar el catálogo"),
         ),
         "Inactivo": (
             "Novedades del catálogo (A) vs. Encuesta cercana de reactivación (B)",
-            ("Novedades del catálogo", "{{nombre}}, esto es lo nuevo en DOLLY",
-             "Hola {{nombre}},\nQueremos volver a ser parte de tus próximas compras. Por eso te presentamos los productos nuevos que acaban de llegar, pensando en ti.",
+            ("Novedades del catálogo", "Esto es lo nuevo en DOLLY",
+             "Hola,\nQueremos volver a ser parte de tus próximas compras. Por eso te presentamos los productos nuevos que acaban de llegar.",
              "Explorar novedades"),
-            ("Encuesta cercana", "{{nombre}}, tu opinión nos ayuda a mejorar",
-             "Hola {{nombre}},\nHace tiempo que no sabemos de ti, y nos encantaría saber qué buscas hoy en día o qué podemos hacer mejor para ti. Te tomará menos de 1 minuto.",
+            ("Encuesta cercana", "Tu opinión nos ayuda a mejorar",
+             "Hola,\nHace tiempo que no sabemos de ti, y nos encantaría saber qué buscas hoy en día o qué podemos hacer mejor. Te tomará menos de 1 minuto.",
              "Responder encuesta corta"),
         ),
         "Perdido": (
             "Renovación de marca (A) vs. Invitación abierta y cálida a redescubrir (B)",
-            ("Renovación de marca", "DOLLY ha renovado su catálogo, {{nombre}}",
-             "Hola {{nombre}},\nHa pasado bastante tiempo desde tu última compra.\nRenovamos nuestro catálogo y mejoramos la experiencia de nuestra tienda — te invitamos a conocer esta nueva etapa de DOLLY.",
+            ("Renovación de marca", "DOLLY ha renovado su catálogo",
+             "Hola,\nHa pasado bastante tiempo desde tu última compra.\nRenovamos nuestro catálogo y mejoramos la experiencia de nuestra tienda — te invitamos a conocer esta nueva etapa de DOLLY.",
              "Descubrir la nueva experiencia"),
-            ("Invitación cálida", "Queremos volver a encontrarnos contigo, {{nombre}}",
-             "Hola {{nombre}},\nSabemos que el tiempo pasa, y nosotros seguimos mejorando pensando siempre en nuestros clientes.\nCuando quieras, las puertas de DOLLY están abiertas para que veas todo lo que hemos cuidado para ti.",
+            ("Invitación cálida", "Queremos volver a encontrarnos contigo",
+             "Hola,\nSabemos que el tiempo pasa, y nosotros seguimos mejorando pensando siempre en nuestros clientes.\nCuando quieras, las puertas de DOLLY están abiertas para que veas todo lo que hemos cuidado para ti.",
              "Ver catálogo actualizado"),
         ),
     }
