@@ -7,9 +7,10 @@
 # la app: es la forma correcta de hacerlo para que se vea igual en Gmail,
 # Outlook y Apple Mail.
 #
-# Los placeholders {{nombre}}, {{monto}}, {{brecha_flete}}, {{cta_url}} se
-# dejan tal cual en el HTML final — la personalización real la hace la
-# plataforma de envío (MailUp) al momento de mandar el correo, no esta app.
+# El botón CTA apunta por defecto a https://www.dolly.cl/ — la app ya no usa
+# variables {{...}} (se sacaron a pedido, no se cuenta con datos de
+# personalización por cliente). Si algún día se necesita un link distinto
+# por segmento, se puede pasar cta_url al llamar generar_html_email().
 # =============================================================================
 
 import html as html_lib
@@ -22,7 +23,7 @@ BORDE = "#E7E3DA"
 TEXTO_SECUNDARIO = "#6E6B64"
 
 
-def generar_html_email(asunto, mensaje, cta, cta_url="{{cta_url}}"):
+def generar_html_email(asunto, mensaje, cta, cta_url="https://www.dolly.cl/"):
     """
     Genera el HTML completo de un correo (documento HTML entero, listo para
     subir a MailUp o adjuntar). `mensaje` se parte por saltos de línea para
