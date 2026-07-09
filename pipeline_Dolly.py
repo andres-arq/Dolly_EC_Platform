@@ -263,6 +263,15 @@ def segmentar_clientes(df_raw):
     df["tiene_telefono"]   = df["homePhone"].notna()
     df["tiene_newsletter"] = df["isNewsletterOptIn"].fillna(False)
 
+    # Email: puede venir vacío en el CSV de VTEX (por eso existe el notebook
+    # que lo completa cruzando con carritos_2026.csv antes de subir el CSV).
+    # Se calcula de forma defensiva por si la columna no viene en el archivo.
+    if "email" in df.columns:
+        df["tiene_email"] = df["email"].notna() & (df["email"].astype(str).str.strip() != "")
+    else:
+        df["email"] = None
+        df["tiene_email"] = False
+
     # Badges de compra / abandono
     df["es_comprador"] = df["paso_abandono"] == "Finalizado"
     df["tiene_carrito_abandonado_historico"] = df["tuvo_carrito_abandonado_historico"].fillna(False)
