@@ -194,9 +194,9 @@ for letra, tab in zip(["A", "B"], [tab_a, tab_b]):
             )
 
 st.caption(
-    "Variables disponibles: `{{nombre}}` `{{monto}}` `{{brecha_flete}}` `{{segmento}}` — "
-    "se reemplazan de verdad recién al momento del envío (MailUp); acá solo se simulan en "
-    "la vista previa de texto. El HTML descargado conserva los placeholders tal cual."
+    "Las plantillas son genéricas — no usan variables de personalización "
+    "(no tenemos el nombre real de cada cliente todavía). Si más adelante se "
+    "cuenta con ese dato, se pueden reintroducir variables como `{{nombre}}`."
 )
 
 col_btn1, col_btn2 = st.columns(2)
