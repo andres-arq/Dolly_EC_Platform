@@ -91,8 +91,7 @@ if not top_cliente_df.empty:
                         hace {c.get('recencia_dias','—')} días
                     </div>
                     <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:4px;">
-                        Interés: <b style="color:{NEGRO};">{producto_txt}</b> — {categoria_txt}
-                        (SKU {sku_txt})
+                        Interés: <b style="color:{NEGRO};">{producto_txt} - {categoria_txt} - {sku_txt}</b>
                     </div>
                 </div>
                 <div style="text-align:right;">
