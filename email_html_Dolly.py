@@ -7,35 +7,40 @@
 # la app: es la forma correcta de hacerlo para que se vea igual en Gmail,
 # Outlook y Apple Mail.
 #
-# El botón CTA apunta por defecto a https://www.dolly.cl/ — la app ya no usa
-# variables {{...}} (se sacaron a pedido, no se cuenta con datos de
-# personalización por cliente). Si algún día se necesita un link distinto
-# por segmento, se puede pasar cta_url al llamar generar_html_email().
+# SIN BOTÓN NI LINK — a pedido, por la preocupación de que un botón/link
+# genérico (sin personalización real) se vea como un patrón de estafa/phishing.
+# El HTML es solo el mensaje de marca; Thomas pega esto en MailUp y el bloque
+# de producto/marca del carrito (cuando existe) lo agrega su propia
+# integración por separado — no es algo que esta app construya.
 # =============================================================================
 
 import html as html_lib
 
 NEGRO = "#1A1A1A"
-ROJO = "#D6362E"
 CREMA = "#FAF8F4"
 CARD = "#F5F2EC"
 BORDE = "#E7E3DA"
 TEXTO_SECUNDARIO = "#6E6B64"
 
 
-def generar_html_email(asunto, mensaje, cta, cta_url="https://www.dolly.cl/"):
+def generar_html_email(asunto, mensaje, cta=None):
     """
     Genera el HTML completo de un correo (documento HTML entero, listo para
-    subir a MailUp o adjuntar). `mensaje` se parte por saltos de línea para
-    armar los párrafos.
+    pegar en MailUp). `mensaje` se parte por saltos de línea para armar los
+    párrafos. `cta` (si se pasa) se muestra como una línea de cierre en
+    negrita, en texto plano — nunca como link ni botón.
     """
     asunto_esc = html_lib.escape(asunto or "")
-    cta_esc = html_lib.escape(cta or "Ver más")
     parrafos = [html_lib.escape(p) for p in (mensaje or "").split("\n") if p.strip() != ""]
     html_parrafos = "\n".join(
         f'<p style="margin:0 0 16px 0; font-size:16px; line-height:1.6; color:{NEGRO};">{p}</p>'
         for p in parrafos
     )
+
+    cta_html = ""
+    if cta and cta.strip():
+        cta_esc = html_lib.escape(cta.strip())
+        cta_html = f'<p style="margin:8px 0 0 0; font-size:16px; font-weight:bold; color:{NEGRO};">{cta_esc}</p>'
 
     return f"""<!DOCTYPE html>
 <html lang="es">
@@ -55,23 +60,9 @@ def generar_html_email(asunto, mensaje, cta, cta_url="https://www.dolly.cl/"):
           </td>
         </tr>
         <tr>
-          <td style="padding:36px 32px 8px 32px;">
+          <td style="padding:36px 32px 36px 32px;">
 {html_parrafos}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:8px 32px 36px 32px;" align="center">
-            <table role="presentation" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="background-color:{ROJO}; border-radius:4px;">
-                  <a href="{cta_url}" target="_blank"
-                     style="display:inline-block; padding:14px 32px; font-size:15px; font-weight:bold;
-                            color:#FFFFFF; text-decoration:none; font-family:Arial, Helvetica, sans-serif;">
-                    {cta_esc}
-                  </a>
-                </td>
-              </tr>
-            </table>
+{cta_html}
           </td>
         </tr>
         <tr>
