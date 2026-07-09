@@ -1,8 +1,9 @@
 # =============================================================================
-# 04_campanas.py — Gestión de plantillas de correo por segmento
+# 04_campanas.py — Gestión de plantillas de correo por segmento (test A/B)
 # =============================================================================
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import sys
 import os
@@ -12,12 +13,14 @@ from pipeline_Dolly import (
     cargar_perfil_clientes,
     cargar_plantillas,
     guardar_plantillas,
+    ORDEN_PRIORIDAD_SEGMENTOS,
     PARAMS,
 )
 from estilo_Dolly import (
     aplicar_estilo, encabezado_pagina, kpi_card, divisor,
     NEGRO, ROJO, VINO, GRIS,
 )
+from email_html_Dolly import generar_html_email, nombre_archivo_html
 
 st.set_page_config(page_title="Campañas — Dolly", page_icon="📧", layout="wide")
 aplicar_estilo()
@@ -25,7 +28,7 @@ aplicar_estilo()
 encabezado_pagina(
     modulo="Módulo 04 · Campañas",
     titulo="Gestión de campañas",
-    subtitulo="Edita las plantillas de correo por segmento y activa o desactiva campañas.",
+    subtitulo="Edita las variantes A/B de cada segmento, genera el HTML del correo y actívalas o desactívalas.",
 )
 
 # Cargar datos
@@ -87,73 +90,131 @@ if info:
 divisor()
 
 # ==============================================
-# EDITOR DE PLANTILLA
+# EDITOR DE PLANTILLA — VARIANTES A/B
 # ==============================================
 plantilla_actual = plantillas.get(segmento_sel, {})
+variantes_actuales = plantilla_actual.get("variantes", {"A": {}, "B": {}})
 
-col_editor, col_preview = st.columns([1, 1])
+st.subheader("✏️ Editor — Test A/B")
 
-with col_editor:
-    st.subheader("✏️ Editor")
-
+col_activa, col_hipotesis = st.columns([1, 3])
+with col_activa:
     activa = st.toggle(
         "Campaña activa",
         value=plantilla_actual.get("activa", False),
-        help="Activa o desactiva el envío automático para este segmento"
+        help="Activa o desactiva el envío para este segmento",
+    )
+with col_hipotesis:
+    hipotesis_ab = st.text_input(
+        "Hipótesis a testear (A vs. B)",
+        value=plantilla_actual.get("hipotesis_ab", ""),
+        placeholder="Ej: Urgencia/escasez (A) vs. Soporte de pago (B)",
     )
 
-    asunto = st.text_input(
-        "Asunto del correo",
-        value=plantilla_actual.get("asunto", ""),
-        placeholder="Ej: Tu carrito te espera 👟",
-    )
+# Datos de ejemplo del segmento, para la vista previa con variables reemplazadas
+df_seg = df[df["segmento"] == segmento_sel]
+if not df_seg.empty:
+    ejemplo = df_seg.iloc[0]
+    brecha_ejemplo = max(0, PARAMS["ticket_umbral_flete_gratis"] - ejemplo.get("monto_carrito", 0))
+    monto_ejemplo = ejemplo.get("monto_carrito", 0)
+else:
+    brecha_ejemplo = 0
+    monto_ejemplo = 0
 
-    mensaje = st.text_area(
-        "Cuerpo del mensaje",
-        value=plantilla_actual.get("mensaje", ""),
-        height=300,
-        placeholder="Escribe el mensaje aquí...\n\nPuedes usar:\n{{nombre}} → nombre del cliente\n{{monto}} → monto del carrito\n{{brecha_flete}} → cuánto falta para flete gratis",
-    )
+prioridad_segmento = ORDEN_PRIORIDAD_SEGMENTOS.get(segmento_sel, 0)
 
-    st.caption("Variables disponibles: `{{nombre}}` `{{monto}}` `{{brecha_flete}}` `{{segmento}}`")
+tab_a, tab_b = st.tabs(["Variante A", "Variante B"])
+nuevas_variantes = {}
 
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("💾 Guardar plantilla", type="primary", use_container_width=True):
-            plantillas[segmento_sel] = {
-                "activa":       activa,
-                "asunto":       asunto,
-                "mensaje":      mensaje,
-                "ultimo_envio": plantilla_actual.get("ultimo_envio"),
-            }
-            ok_sync, detalle_sync = guardar_plantillas(plantillas)
-            st.success("✅ Plantilla guardada correctamente.")
-            (st.success if ok_sync else st.warning)(detalle_sync)
+for letra, tab in zip(["A", "B"], [tab_a, tab_b]):
+    with tab:
+        datos_variante = variantes_actuales.get(letra, {})
+        col_editor, col_preview = st.columns([1, 1], gap="large")
 
-    with col_btn2:
-        if st.button("↩️ Restaurar original", use_container_width=True):
-            st.rerun()
+        with col_editor:
+            nombre_variante = st.text_input(
+                "Nombre de la variante (para identificar la hipótesis)",
+                value=datos_variante.get("nombre_variante", f"Variante {letra}"),
+                key=f"nombre_{letra}",
+            )
+            asunto = st.text_input(
+                "Asunto del correo",
+                value=datos_variante.get("asunto", ""),
+                placeholder="Ej: {{nombre}}, tu carrito se libera en 2 horas ⏳",
+                key=f"asunto_{letra}",
+            )
+            mensaje = st.text_area(
+                "Cuerpo del mensaje",
+                value=datos_variante.get("mensaje", ""),
+                height=220,
+                placeholder="Hola {{nombre}},\n\nTus productos ({{monto}}) siguen en tu carrito...",
+                key=f"mensaje_{letra}",
+            )
+            cta = st.text_input(
+                "CTA (texto del botón)",
+                value=datos_variante.get("cta", ""),
+                placeholder="Ej: Finalizar mi compra ahora",
+                key=f"cta_{letra}",
+            )
 
-with col_preview:
-    st.subheader("👁️ Vista previa")
+        nuevas_variantes[letra] = {
+            "nombre_variante": nombre_variante,
+            "asunto": asunto,
+            "mensaje": mensaje,
+            "cta": cta,
+        }
 
-    # Simular variables con datos reales del segmento
-    df_seg = df[df["segmento"] == segmento_sel]
-    if not df_seg.empty:
-        ejemplo = df_seg.iloc[0]
-        brecha  = max(0, PARAMS["ticket_umbral_flete_gratis"] - ejemplo.get("monto_carrito", 0))
+        with col_preview:
+            st.markdown("**Vista previa (texto)**")
+            mensaje_preview = (mensaje or "").replace("{{nombre}}", "Cliente")
+            mensaje_preview = mensaje_preview.replace("{{monto}}", f"${monto_ejemplo:,.0f}")
+            mensaje_preview = mensaje_preview.replace("{{brecha_flete}}", f"${brecha_ejemplo:,.0f}")
+            mensaje_preview = mensaje_preview.replace("{{segmento}}", segmento_sel)
 
-        mensaje_preview = mensaje.replace("{{nombre}}", "Cliente")
-        mensaje_preview = mensaje_preview.replace("{{monto}}", f"${ejemplo.get('monto_carrito', 0):,.0f}")
-        mensaje_preview = mensaje_preview.replace("{{brecha_flete}}", f"${brecha:,.0f}")
-        mensaje_preview = mensaje_preview.replace("{{segmento}}", segmento_sel)
-    else:
-        mensaje_preview = mensaje
+            st.markdown(f"**Para:** cliente@ejemplo.cl")
+            st.markdown(f"**Asunto:** {asunto if asunto else '_(sin asunto)_'}")
+            divisor(margen_top=8, margen_bottom=8)
+            st.markdown(mensaje_preview if mensaje_preview else "_(mensaje vacío)_")
+            if cta:
+                st.markdown(f"🔘 **{cta}**")
 
-    st.markdown(f"**Para:** cliente@ejemplo.cl")
-    st.markdown(f"**Asunto:** {asunto if asunto else '_(sin asunto)_'}")
-    divisor(margen_top=10, margen_bottom=10)
-    st.markdown(mensaje_preview if mensaje_preview else "_(mensaje vacío)_")
+            html_generado = generar_html_email(asunto, mensaje, cta)
+            archivo_html = nombre_archivo_html(prioridad_segmento, segmento_sel, letra)
+
+            with st.expander("🌐 Ver HTML del correo (como se vería en el cliente de correo)"):
+                components.html(html_generado, height=480, scrolling=True)
+
+            st.download_button(
+                f"⬇️ Descargar HTML — Variante {letra}",
+                data=html_generado,
+                file_name=archivo_html,
+                mime="text/html",
+                use_container_width=True,
+                key=f"descargar_{letra}",
+            )
+
+st.caption(
+    "Variables disponibles: `{{nombre}}` `{{monto}}` `{{brecha_flete}}` `{{segmento}}` — "
+    "se reemplazan de verdad recién al momento del envío (MailUp); acá solo se simulan en "
+    "la vista previa de texto. El HTML descargado conserva los placeholders tal cual."
+)
+
+col_btn1, col_btn2 = st.columns(2)
+with col_btn1:
+    if st.button("💾 Guardar plantilla", type="primary", use_container_width=True):
+        plantillas[segmento_sel] = {
+            "activa":       activa,
+            "hipotesis_ab": hipotesis_ab,
+            "variantes":    nuevas_variantes,
+            "ultimo_envio": plantilla_actual.get("ultimo_envio"),
+        }
+        ok_sync, detalle_sync = guardar_plantillas(plantillas)
+        st.success("✅ Plantilla guardada correctamente.")
+        (st.success if ok_sync else st.warning)(detalle_sync)
+
+with col_btn2:
+    if st.button("↩️ Restaurar original", use_container_width=True):
+        st.rerun()
 
 divisor()
 
@@ -165,14 +226,19 @@ st.subheader("Estado de todas las campañas")
 filas = []
 for seg, config in plantillas.items():
     info_seg = stats_dict.get(seg, {})
+    variantes_seg = config.get("variantes", {})
+    asunto_a = variantes_seg.get("A", {}).get("asunto", "")
+    asunto_b = variantes_seg.get("B", {}).get("asunto", "")
     filas.append({
-        "Segmento":     seg,
-        "Estado":       "✅ Activa" if config.get("activa") else "⏸️ Inactiva",
-        "Clientes":     info_seg.get("clientes", 0),
-        "% Newsletter": info_seg.get("pct_newsletter", 0),
-        "% Email":      info_seg.get("pct_email", 0),
-        "Último envío": config.get("ultimo_envio") or "Nunca",
-        "Asunto":       config.get("asunto", "")[:50] + "..." if len(config.get("asunto", "")) > 50 else config.get("asunto", ""),
+        "Segmento":       seg,
+        "Estado":         "✅ Activa" if config.get("activa") else "⏸️ Inactiva",
+        "Clientes":       info_seg.get("clientes", 0),
+        "% Newsletter":   info_seg.get("pct_newsletter", 0),
+        "% Email":        info_seg.get("pct_email", 0),
+        "Hipótesis A/B":  config.get("hipotesis_ab", ""),
+        "Asunto A":       (asunto_a[:40] + "...") if len(asunto_a) > 40 else asunto_a,
+        "Asunto B":       (asunto_b[:40] + "...") if len(asunto_b) > 40 else asunto_b,
+        "Último envío":   config.get("ultimo_envio") or "Nunca",
     })
 
 df_estado = pd.DataFrame(filas).sort_values("Clientes", ascending=False)
