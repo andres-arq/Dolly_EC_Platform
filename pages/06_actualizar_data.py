@@ -134,6 +134,7 @@ if archivo_subido:
                     "monto_carrito", "ticket_prom", "ticket_max",
                     "frecuencia", "paso_abandono", "brecha_flete",
                     "sobre_umbral", "tiene_telefono", "tiene_newsletter",
+                    "email", "tiene_email",
                     "es_comprador", "tiene_carrito_abandonado_historico",
                     "producto_id", "categoria_producto", "marca_producto", "departamento_producto",
                     "ultima_sesion", "primera_sesion",
@@ -151,7 +152,7 @@ if archivo_subido:
                     "userId", "segmento", "paso_abandono",
                     "recencia_dias", "monto_carrito", "ticket_prom",
                     "frecuencia", "sobre_umbral", "brecha_flete",
-                    "tiene_telefono", "tiene_newsletter",
+                    "tiene_telefono", "tiene_newsletter", "tiene_email",
                     "es_comprador", "tiene_carrito_abandonado_historico",
                     "producto_id", "categoria_producto", "marca_producto", "departamento_producto",
                 ]
@@ -162,7 +163,7 @@ if archivo_subido:
                     if col in df_pbi.columns:
                         df_pbi[col] = pd.to_datetime(df_pbi[col], errors="coerce").dt.tz_localize(None)
 
-                for col in ["sobre_umbral", "tiene_telefono", "tiene_newsletter",
+                for col in ["sobre_umbral", "tiene_telefono", "tiene_newsletter", "tiene_email",
                             "es_comprador", "tiene_carrito_abandonado_historico"]:
                     if col in df_pbi.columns:
                         df_pbi[col] = df_pbi[col].astype(int)
