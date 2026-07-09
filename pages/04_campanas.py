@@ -103,12 +103,14 @@ with col_activa:
         "Campaña activa",
         value=plantilla_actual.get("activa", False),
         help="Activa o desactiva el envío para este segmento",
+        key=f"activa_{segmento_sel}",
     )
 with col_hipotesis:
     hipotesis_ab = st.text_input(
         "Hipótesis a testear (A vs. B)",
         value=plantilla_actual.get("hipotesis_ab", ""),
         placeholder="Ej: Urgencia/escasez (A) vs. Soporte de pago (B)",
+        key=f"hipotesis_{segmento_sel}",
     )
 
 # Datos de ejemplo del segmento, para la vista previa con variables reemplazadas
@@ -135,26 +137,26 @@ for letra, tab in zip(["A", "B"], [tab_a, tab_b]):
             nombre_variante = st.text_input(
                 "Nombre de la variante (para identificar la hipótesis)",
                 value=datos_variante.get("nombre_variante", f"Variante {letra}"),
-                key=f"nombre_{letra}",
+                key=f"nombre_{segmento_sel}_{letra}",
             )
             asunto = st.text_input(
                 "Asunto del correo",
                 value=datos_variante.get("asunto", ""),
-                placeholder="Ej: {{nombre}}, tu carrito se libera en 2 horas ⏳",
-                key=f"asunto_{letra}",
+                placeholder="Ej: Tu carrito se libera en 2 horas",
+                key=f"asunto_{segmento_sel}_{letra}",
             )
             mensaje = st.text_area(
                 "Cuerpo del mensaje",
                 value=datos_variante.get("mensaje", ""),
                 height=220,
-                placeholder="Hola {{nombre}},\n\nTus productos ({{monto}}) siguen en tu carrito...",
-                key=f"mensaje_{letra}",
+                placeholder="Hola,\n\nTus productos siguen en tu carrito...",
+                key=f"mensaje_{segmento_sel}_{letra}",
             )
             cta = st.text_input(
                 "CTA (texto del botón)",
                 value=datos_variante.get("cta", ""),
                 placeholder="Ej: Finalizar mi compra ahora",
-                key=f"cta_{letra}",
+                key=f"cta_{segmento_sel}_{letra}",
             )
 
         nuevas_variantes[letra] = {
@@ -190,7 +192,7 @@ for letra, tab in zip(["A", "B"], [tab_a, tab_b]):
                 file_name=archivo_html,
                 mime="text/html",
                 use_container_width=True,
-                key=f"descargar_{letra}",
+                key=f"descargar_{segmento_sel}_{letra}",
             )
 
 st.caption(
