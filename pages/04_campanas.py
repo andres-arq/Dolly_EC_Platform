@@ -43,6 +43,13 @@ stats_segmento = df.groupby("segmento").agg(
     pct_newsletter= ("tiene_newsletter","mean"),
 ).round(1).reset_index()
 stats_segmento["pct_newsletter"] = (stats_segmento["pct_newsletter"] * 100).round(1)
+
+if "tiene_email" in df.columns:
+    pct_email_seg = df.groupby("segmento")["tiene_email"].mean() * 100
+    stats_segmento["pct_email"] = stats_segmento["segmento"].map(pct_email_seg).round(1)
+else:
+    stats_segmento["pct_email"] = 0.0
+
 stats_dict = stats_segmento.set_index("segmento").to_dict("index")
 
 # ==============================================
@@ -62,13 +69,20 @@ divisor()
 # Info del segmento seleccionado
 info = stats_dict.get(segmento_sel, {})
 if info:
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         kpi_card("Clientes en segmento", f"{info.get('clientes', 0):,}")
     with col2:
         kpi_card("Monto mediano", f"${info.get('monto_mediano', 0):,.0f}")
     with col3:
         kpi_card("% Contactables newsletter", f"{info.get('pct_newsletter', 0):.1f}%", color=GRIS)
+    with col4:
+        pct_email_val = info.get("pct_email", 0)
+        kpi_card(
+            "% Con email disponible",
+            f"{pct_email_val:.1f}%",
+            color=ROJO if pct_email_val < 50 else NEGRO,
+        )
 
 divisor()
 
@@ -156,6 +170,7 @@ for seg, config in plantillas.items():
         "Estado":       "✅ Activa" if config.get("activa") else "⏸️ Inactiva",
         "Clientes":     info_seg.get("clientes", 0),
         "% Newsletter": info_seg.get("pct_newsletter", 0),
+        "% Email":      info_seg.get("pct_email", 0),
         "Último envío": config.get("ultimo_envio") or "Nunca",
         "Asunto":       config.get("asunto", "")[:50] + "..." if len(config.get("asunto", "")) > 50 else config.get("asunto", ""),
     })
