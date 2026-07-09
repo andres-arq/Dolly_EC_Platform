@@ -7,6 +7,8 @@ import streamlit.components.v1 as components
 import pandas as pd
 import sys
 import os
+import zipfile
+import io
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import (
@@ -245,3 +247,35 @@ for seg, config in plantillas.items():
 
 df_estado = pd.DataFrame(filas).sort_values("Clientes", ascending=False)
 st.dataframe(df_estado, use_container_width=True, hide_index=True)
+
+divisor()
+
+# ==============================================
+# DESCARGA MASIVA DE TODOS LOS HTML
+# ==============================================
+st.subheader("📦 Descargar todos los HTML")
+st.caption(
+    "Genera un .zip con las 28 plantillas (14 segmentos × Variante A/B), con el mismo "
+    "contenido que está guardado ahora mismo — no depende de qué segmento tengas "
+    "seleccionado arriba."
+)
+
+buffer_zip = io.BytesIO()
+with zipfile.ZipFile(buffer_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+    for seg, config in plantillas.items():
+        prioridad = ORDEN_PRIORIDAD_SEGMENTOS.get(seg, 0)
+        variantes_zip = config.get("variantes", {})
+        for letra in ["A", "B"]:
+            v = variantes_zip.get(letra, {})
+            html_generado = generar_html_email(v.get("asunto", ""), v.get("mensaje", ""), v.get("cta", ""))
+            archivo_html = nombre_archivo_html(prioridad, seg, letra)
+            zf.writestr(archivo_html, html_generado)
+buffer_zip.seek(0)
+
+st.download_button(
+    "⬇️ Descargar dolly_campanas_html.zip (28 archivos)",
+    data=buffer_zip,
+    file_name="dolly_campanas_html.zip",
+    mime="application/zip",
+    use_container_width=True,
+)
