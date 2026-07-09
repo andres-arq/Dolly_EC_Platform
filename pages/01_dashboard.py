@@ -291,14 +291,6 @@ with col_der:
     fig.update_yaxes(automargin=True)
     st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
 
-with st.expander("📖 ¿Qué significa cada segmento? (explicación + recomendación)"):
-    filas_glosario = [
-        {"Segmento": seg, "Qué significa": desc, "Recomendación": rec}
-        for seg, (desc, rec) in DESCRIPCION_SEGMENTOS.items()
-    ]
-    filas_glosario = sorted(filas_glosario, key=lambda f: ORDEN_PRIORIDAD_SEGMENTOS.get(f["Segmento"], 99))
-    st.dataframe(pd.DataFrame(filas_glosario), use_container_width=True, hide_index=True)
-
 divisor()
 
 # ==============================================
@@ -306,9 +298,10 @@ divisor()
 # ==============================================
 st.subheader("🧭 Cómo avanza un cliente entre segmentos")
 st.caption(
-    "Haz clic en cada segmento para ver su detalle. Es una simplificación en 3 rutas de "
-    "la misma lógica que usa el sistema para clasificar — en la realidad es un árbol de "
-    "decisión, no una sola línea, pero estas son las rutas que más se repiten."
+    "Haz clic en cada segmento para ver su detalle y la recomendación. Es una "
+    "simplificación en 3 rutas de la misma lógica que usa el sistema para clasificar "
+    "— en la realidad es un árbol de decisión, no una sola línea, pero estas son las "
+    "rutas que más se repiten."
 )
 
 
@@ -319,38 +312,32 @@ def _paso_flujo(nombre_segmento):
         st.markdown(f"**Recomendación:** {recomendacion}")
 
 
-def _fila_flujo(secuencia):
-    n = len(secuencia)
-    anchos = []
-    for _ in range(n):
-        anchos += [5, 1]
-    anchos = anchos[:-1]
-    cols = st.columns(anchos)
-    idx = 0
+def _flujo_vertical(secuencia):
     for i, seg in enumerate(secuencia):
-        with cols[idx]:
-            _paso_flujo(seg)
-        idx += 1
-        if i < n - 1:
-            with cols[idx]:
-                st.markdown(
-                    "<div style='text-align:center; font-size:22px; padding-top:18px; color:%s;'>→</div>" % ROJO,
-                    unsafe_allow_html=True,
-                )
-            idx += 1
+        _paso_flujo(seg)
+        if i < len(secuencia) - 1:
+            st.markdown(
+                f"<div style='text-align:center; font-size:20px; color:{ROJO}; margin:-4px 0 4px 0;'>↓</div>",
+                unsafe_allow_html=True,
+            )
 
 
-st.markdown("**Ruta 1 — Cliente de alto monto (≥$100.000), a medida que pasa el tiempo sin volver a comprar**")
-_fila_flujo(["Cliente VIP", "Alto Valor Reciente", "Alto Valor En Riesgo", "Alto Valor Perdido"])
+col_ruta1, col_ruta2, col_ruta3 = st.columns(3, gap="large")
 
-st.markdown("**Ruta 2 — Actividad general, a medida que pasa el tiempo sin actividad**")
-_fila_flujo(["Potencial Sin Carrito", "Potencial Con Carrito", "Cliente Activo", "Inactivo", "Perdido"])
+with col_ruta1:
+    st.markdown(
+        "**Ruta 1 — Abandonó el checkout** *(no es secuencial — cada cliente cae en "
+        "una sola, según el paso exacto donde se detuvo, ordenadas de más a menos urgente)*"
+    )
+    _flujo_vertical(["Recuperable Urgente", "Recuperable Flete", "Recuperable Temprano", "Recuperable Bajo"])
 
-st.markdown(
-    "**Ruta 3 — Abandonó el checkout** *(no es secuencial — cada cliente cae en uno solo, "
-    "según el paso exacto donde se detuvo)*"
-)
-_fila_flujo(["Recuperable Temprano", "Recuperable Bajo", "Recuperable Flete", "Recuperable Urgente"])
+with col_ruta2:
+    st.markdown("**Ruta 2 — Cliente de alto monto (≥$100.000), a medida que pasa el tiempo sin volver a comprar**")
+    _flujo_vertical(["Cliente VIP", "Alto Valor Reciente", "Alto Valor En Riesgo", "Alto Valor Perdido"])
+
+with col_ruta3:
+    st.markdown("**Ruta 3 — Actividad general, a medida que pasa el tiempo sin actividad**")
+    _flujo_vertical(["Potencial Sin Carrito", "Potencial Con Carrito", "Cliente Activo", "Inactivo", "Perdido"])
 
 divisor()
 
