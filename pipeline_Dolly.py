@@ -134,29 +134,200 @@ def cargar_puntos_blueexpress():
 
 
 def cargar_plantillas():
-    """Carga las plantillas de correo por segmento."""
+    """
+    Carga las plantillas de correo por segmento. Cada segmento tiene DOS
+    variantes (A y B) para test A/B, más la hipótesis que se está testeando.
+    Si el archivo guardado es de una versión anterior (una sola plantilla por
+    segmento, sin variantes), se migra automáticamente a la nueva estructura
+    metiendo el contenido viejo en la Variante A y dejando B vacía.
+    """
     ruta = os.path.join(RUTA_BASE, "plantillas_campanas.json")
     if os.path.exists(ruta):
         with open(ruta, "r", encoding="utf-8") as f:
-            return json.load(f)
+            plantillas = json.load(f)
+        return _migrar_plantillas_a_variantes(plantillas)
 
-    # Plantillas por defecto
-    segmentos = [
-        "Cliente VIP", "Cliente Activo", "Con Carrito",
-        "Alto Valor Reciente", "Alto Valor En Riesgo", "Alto Valor Perdido",
-        "Recuperable Urgente", "Recuperable Flete", "Recuperable Temprano",
-        "Recuperable Bajo", "Potencial Con Carrito", "Potencial Sin Carrito",
-        "Inactivo", "Perdido",
-    ]
-    return {
-        seg: {
-            "activa":       False,
-            "asunto":       f"Te echamos de menos, {seg}",
-            "mensaje":      f"Hola,\n\nTenemos productos esperándote.\n\nVisítanos en dolly.cl",
+    return _plantillas_por_defecto()
+
+
+def _migrar_plantillas_a_variantes(plantillas):
+    """Convierte el formato viejo (un solo asunto/mensaje) al formato con variantes A/B."""
+    migradas = {}
+    for seg, config in plantillas.items():
+        if "variantes" in config:
+            migradas[seg] = config
+        else:
+            migradas[seg] = {
+                "activa": config.get("activa", False),
+                "hipotesis_ab": "",
+                "variantes": {
+                    "A": {
+                        "nombre_variante": "Variante A",
+                        "asunto": config.get("asunto", ""),
+                        "mensaje": config.get("mensaje", ""),
+                        "cta": "Ver más",
+                    },
+                    "B": {
+                        "nombre_variante": "Variante B",
+                        "asunto": "",
+                        "mensaje": "",
+                        "cta": "",
+                    },
+                },
+                "ultimo_envio": config.get("ultimo_envio"),
+            }
+    return migradas
+
+
+def _plantillas_por_defecto():
+    """
+    Plantillas por defecto — contenido optimizado para captación (asuntos con
+    gancho concreto, hipótesis A/B explícita, un CTA por correo). Basado en
+    Mensajes_Dolly_Optimizado.docx.
+    """
+    datos = {
+        "Recuperable Urgente": (
+            "Urgencia/escasez real (A) vs. Soporte/fricción de pago (B)",
+            ("Urgencia / escasez", "{{nombre}}, tu carrito se libera en 2 horas ⏳",
+             "Hola {{nombre}},\nTus productos ({{monto}}) están reservados, pero solo por tiempo limitado.\nOtros clientes están viendo estos mismos productos ahora mismo — confirma tu pago para asegurar tu pedido antes de que se agoten.",
+             "Finalizar mi compra ahora"),
+            ("Soporte / fricción de pago", "{{nombre}}, ¿tu pago no se pudo procesar?",
+             "Hola {{nombre}},\nNotamos que intentaste completar tu compra de {{monto}} y no se concretó.\nEsto suele pasar por un detalle técnico del banco o la tarjeta, no por ti. Tu carrito sigue guardado y puedes intentarlo con otro medio de pago (tarjeta, transferencia o Webpay).",
+             "Reintentar mi pago"),
+        ),
+        "Recuperable Flete": (
+            "Cerrar la brecha exacta con urgencia de ahorro (A) vs. Transparencia total sin exigir monto mínimo (B)",
+            ("Cerrar la brecha exacta", "Con {{brecha_flete}} más, tu despacho es gratis",
+             "Hola {{nombre}},\nTus productos ({{monto}}) siguen en tu carrito.\nAgregando solo {{brecha_flete}} a tu compra, el despacho sale gratis. Aprovecha antes de que cambie la disponibilidad de tus productos.",
+             "Completar mi compra y ahorrar en despacho"),
+            ("Transparencia sin exigir monto mínimo", "Así calculamos tu despacho, sin sorpresas",
+             "Hola {{nombre}},\nSabemos que el costo de envío puede ser una sorpresa al final de la compra.\nPor eso queremos que sepas exactamente cuánto pagarías antes de decidir. Tu carrito de {{monto}} sigue disponible, sin compromiso.",
+             "Ver el detalle de mi despacho"),
+        ),
+        "Recuperable Temprano": (
+            "Disponibilidad limitada (A) vs. Sin presión de tiempo, foco en flexibilidad (B)",
+            ("Recordatorio con disponibilidad limitada", "{{nombre}}, tu selección podría agotarse pronto",
+             "Hola {{nombre}},\nHace poco visitaste DOLLY y dejaste productos pendientes por {{monto}}.\nSiguen disponibles, pero al ser productos populares no podemos asegurar el stock por mucho más tiempo.",
+             "Finalizar mi compra"),
+            ("Sin presión de tiempo", "Guardamos tu carrito por si necesitas más tiempo",
+             "Hola {{nombre}},\nSabemos que a veces simplemente falta tiempo para decidir con calma.\nPor eso dejamos tu carrito listo para que lo retomes cuando quieras, sin apuro.",
+             "Continuar mi compra cuando quiera"),
+        ),
+        "Recuperable Bajo": (
+            "Incentivo económico con plazo (A) vs. Diagnóstico/feedback que abre la puerta a resolver la objeción real (B)",
+            ("Incentivo concreto", "{{nombre}}, un 10% de descuento válido por 48 horas",
+             "Hola {{nombre}},\nTodavía tienes productos guardados en tu carrito ({{monto}}).\nComo último gesto, te dejamos un 10% de descuento exclusivo, válido solo por 48 horas.",
+             "Usar mi descuento ahora"),
+            ("Diagnóstico / feedback", "{{nombre}}, ¿qué te hizo dudar?",
+             "Hola {{nombre}},\nNotamos que tu compra de {{monto}} quedó pendiente.\nSi encontraste alguna dificultad —precio, envío, talla, disponibilidad— cuéntanos. Queremos ayudarte a resolverlo.",
+             "Contarles qué pasó"),
+        ),
+        "Cliente VIP": (
+            "Beneficio funcional / exclusividad (A) vs. Beneficio relacional / gratitud (B)",
+            ("Beneficio exclusivo", "{{nombre}}, acceso anticipado antes que nadie",
+             "Hola {{nombre}},\nComo uno de nuestros clientes más importantes, te damos acceso exclusivo a nuestras próximas novedades 48 horas antes que al resto de nuestros clientes.",
+             "Ver mi acceso anticipado"),
+            ("Gratitud + beneficio suave", "Gracias por confiar en DOLLY, {{nombre}}",
+             "Hola {{nombre}},\nTu preferencia significa mucho para nosotros.\nComo agradecimiento, tienes despacho prioritario garantizado en tu próxima compra.",
+             "Conocer las novedades"),
+        ),
+        "Cliente Activo": (
+            "Foco en producto / novedad (A) vs. Foco en relación / reconocimiento de fidelidad (B)",
+            ("Novedades directas", "{{nombre}}, esto es lo nuevo en DOLLY",
+             "Hola {{nombre}},\nLlegaron productos nuevos pensados para clientes como tú, que ya conocen lo mejor de DOLLY.",
+             "Ver las novedades"),
+            ("Reconocimiento de fidelidad", "Sabemos que vuelves porque confías en nosotros",
+             "Hola {{nombre}},\nComo cliente frecuente, quisimos que fueras de los primeros en ver las novedades que preparamos.\nGracias por seguir eligiendo DOLLY.",
+             "Ver las novedades"),
+        ),
+        "Alto Valor Reciente": (
+            "Cuidado post-compra / relación (A) vs. Cross-sell inmediato (B)",
+            ("Relación / cuidado del producto", "Todo lo que necesitas saber sobre tu compra",
+             "Hola {{nombre}},\nGracias por tu compra reciente de {{monto}}.\nTe dejamos algunos tips para sacarle el máximo provecho a tus productos, directo de nuestro equipo.",
+             "Ver mis tips"),
+            ("Cross-sell", "{{nombre}}, esto combina perfecto con tu compra",
+             "Hola {{nombre}},\nHace poco elegiste comprar en DOLLY.\nSeleccionamos productos que complementan justo lo que llevaste, para que aproveches al máximo tu compra.",
+             "Ver recomendados para mí"),
+        ),
+        "Alto Valor En Riesgo": (
+            "Incentivo económico concreto (A) vs. Relación sin descuento (B) — mide si el descuento es necesario",
+            ("Beneficio directo", "{{nombre}}, hace tiempo que no te vemos — un 15% para ti",
+             "Hola {{nombre}},\nComo uno de nuestros mejores clientes, queremos que vuelvas con un 15% de descuento exclusivo en tu próxima compra.",
+             "Usar mi descuento"),
+            ("Relacional", "Nos gustaría volver a acompañarte",
+             "Hola {{nombre}},\nDurante mucho tiempo confiaste en DOLLY y nos encantaría volver a ser parte de tus próximas compras.\nTenemos novedades que creemos podrían interesarte.",
+             "Ver las novedades"),
+        ),
+        "Alto Valor Perdido": (
+            "Incentivo fuerte (A) vs. Emocional / reconexión sin descuento (B)",
+            ("Incentivo fuerte", "{{nombre}}, un 20% de descuento para tu regreso",
+             "Hola {{nombre}},\nEn algún momento fuiste uno de nuestros mejores clientes y queremos que vuelvas.\nPor eso te dejamos un 20% de descuento exclusivo, válido por 7 días.",
+             "Usar mi descuento"),
+            ("Emocional / reconexión", "Te extrañamos en DOLLY, {{nombre}}",
+             "Hola {{nombre}},\nEn algún momento fuiste uno de nuestros mejores clientes.\nNos encantaría reencontrarnos y mostrarte todo lo que ha cambiado desde tu última visita.",
+             "Ver las novedades"),
+        ),
+        "Con Carrito": (
+            "Recordatorio directo (A) vs. Recordatorio con contexto de uso (B) — sin descuento, el carrito ya es de alto/medio valor",
+            ("Recordatorio directo", "{{nombre}}, tu carrito sigue esperándote",
+             "Hola {{nombre}},\nTus productos ({{monto}}) siguen guardados en tu carrito.\nSolo falta un paso para completar tu compra.",
+             "Finalizar mi compra"),
+            ("Recordatorio con contexto", "¿Aún estás pensando tu compra en DOLLY?",
+             "Hola {{nombre}},\nVimos que dejaste productos en tu carrito ({{monto}}).\nSi tienes dudas sobre talla, stock o despacho, estamos para ayudarte antes de que decidas.",
+             "Ver mi carrito"),
+        ),
+        "Potencial Con Carrito": (
+            "Cierre directo con urgencia de stock (A) vs. Incentivo de primera compra (B)",
+            ("Cierre directo", "{{nombre}}, tu primera compra está a un paso",
+             "Hola {{nombre}},\nYa encontraste productos que te interesan ({{monto}}).\nSolo falta confirmar tu pedido para recibirlos — no dejes que se agoten.",
+             "Finalizar mi primera compra"),
+            ("Incentivo de primera compra", "Un 10% de descuento para tu primera compra",
+             "Hola {{nombre}},\nYa armaste tu carrito en DOLLY.\nPor ser tu primera compra, te dejamos un 10% de descuento válido solo por hoy.",
+             "Usar mi descuento"),
+        ),
+        "Potencial Sin Carrito": (
+            "Descubrimiento por prueba social / popularidad (A) vs. Invitación personalizada (B)",
+            ("Descubrimiento por popularidad", "Lo más elegido por nuestros clientes esta semana",
+             "Hola {{nombre}},\nSabemos que ya conoces DOLLY.\nEstos son los productos más populares del momento, elegidos por cientos de clientes como tú.",
+             "Explorar los más populares"),
+            ("Invitación personalizada", "Te ayudamos a encontrar lo tuyo",
+             "Hola {{nombre}},\nQueremos ayudarte a encontrar productos pensados especialmente para ti.",
+             "Ver mi catálogo personalizado"),
+        ),
+        "Inactivo": (
+            "Novedades sin incentivo (A) vs. Incentivo de reactivación — envío gratis (B)",
+            ("Novedades", "{{nombre}}, esto es lo nuevo en DOLLY",
+             "Hola {{nombre}},\nQueremos volver a ser parte de tus próximas compras.\nTenemos productos nuevos que podrían interesarte.",
+             "Ver las novedades"),
+            ("Incentivo de reactivación", "Un regalo para tu regreso, {{nombre}}",
+             "Hola {{nombre}},\nHace tiempo que no te vemos.\nComo bienvenida de vuelta, te dejamos despacho gratis en tu próxima compra, sin monto mínimo.",
+             "Aprovechar mi despacho gratis"),
+        ),
+        "Perdido": (
+            "Renovación de marca sin descuento (A) vs. Descuento fuerte con urgencia (B)",
+            ("Renovación de marca", "DOLLY cambió, {{nombre}} — vuelve a mirarnos",
+             "Hola {{nombre}},\nHa pasado bastante tiempo desde tu última compra.\nRenovamos completamente nuestro catálogo y queremos invitarte a descubrirlo.",
+             "Ver el nuevo catálogo"),
+            ("Última oportunidad con descuento", "{{nombre}}, 20% de descuento — última oportunidad",
+             "Hola {{nombre}},\nQueremos comenzar de nuevo contigo.\nTe dejamos un 20% de descuento válido solo por 5 días para tu regreso a DOLLY.",
+             "Usar mi descuento"),
+        ),
+    }
+
+    plantillas = {}
+    for seg, (hipotesis, var_a, var_b) in datos.items():
+        nombre_a, asunto_a, mensaje_a, cta_a = var_a
+        nombre_b, asunto_b, mensaje_b, cta_b = var_b
+        plantillas[seg] = {
+            "activa": False,
+            "hipotesis_ab": hipotesis,
+            "variantes": {
+                "A": {"nombre_variante": nombre_a, "asunto": asunto_a, "mensaje": mensaje_a, "cta": cta_a},
+                "B": {"nombre_variante": nombre_b, "asunto": asunto_b, "mensaje": mensaje_b, "cta": cta_b},
+            },
             "ultimo_envio": None,
         }
-        for seg in segmentos
-    }
+    return plantillas
 
 
 def guardar_plantillas(plantillas):
