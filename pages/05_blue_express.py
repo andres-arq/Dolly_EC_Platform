@@ -16,12 +16,13 @@ from pipeline_Dolly import (
     distancia_haversine,
 )
 from estilo_Dolly import (
-    aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
+    aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
     NEGRO, ROJO, VINO, GRIS, SECUENCIA_CATEGORICA,
 )
 
 st.set_page_config(page_title="Blue Express — Dolly", page_icon="📍", layout="wide")
 aplicar_estilo()
+sidebar_dolly()
 
 encabezado_pagina(
     modulo="Módulo 05 · Blue Express",
