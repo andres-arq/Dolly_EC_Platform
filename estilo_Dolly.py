@@ -86,10 +86,13 @@ def aplicar_estilo():
         .stButton > button[kind="primary"]:hover {{
             background-color: {ROJO};
         }}
-        /* Oculta el nav nativo de Streamlit (lista plana generada automáticamente
-           a partir de la carpeta pages/) — se reemplaza en cada página por
-           sidebar_dolly(), así no queda duplicado con el nav custom. */
-        div[data-testid="stSidebarNav"] {{
+        /* Oculta SOLO la lista de links nativa que Streamlit genera
+           automáticamente desde la carpeta pages/ — usamos el testid de la
+           lista (stSidebarNavItems), no el del contenedor (stSidebarNav),
+           porque ese contenedor envuelve también la flecha de colapso y,
+           en algunas versiones, puede terminar tapando el sidebar_dolly()
+           custom que se agrega después si se oculta el div completo. */
+        ul[data-testid="stSidebarNavItems"] {{
             display: none;
         }}
     </style>
@@ -133,7 +136,8 @@ def eyebrow(texto):
 
 
 def encabezado_pagina(modulo, titulo, subtitulo):
-    """Encabezado estándar de página: eyebrow + título + subtítulo + línea."""
+    """Encabezado estándar de página: link de respaldo + eyebrow + título + subtítulo + línea."""
+    st.page_link("app_Dolly.py", label="← Volver al inicio", icon="🏠")
     eyebrow(f"Dolly · {modulo}")
     st.markdown(f"<div style='font-size:26px; font-weight:700; color:{TEXTO_PRIMARIO}; "
                 f"margin-bottom:4px;'>{titulo}</div>", unsafe_allow_html=True)
