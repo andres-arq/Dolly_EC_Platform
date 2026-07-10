@@ -19,13 +19,14 @@ from pipeline_Dolly import (
     PARAMS,
 )
 from estilo_Dolly import (
-    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor,
     NEGRO, ROJO, VINO, GRIS,
 )
 from email_html_Dolly import generar_html_email, nombre_archivo_html
 
 st.set_page_config(page_title="Campañas — Dolly", page_icon="📧", layout="wide")
 aplicar_estilo()
+sidebar_dolly()
 
 encabezado_pagina(
     modulo="Módulo 04 · Campañas",
