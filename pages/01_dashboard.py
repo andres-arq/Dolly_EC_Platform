@@ -4,6 +4,7 @@
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import sys
 import os
@@ -390,14 +391,37 @@ col_izq2, col_der2 = st.columns(2, gap="large")
 
 with col_izq2:
     st.subheader("Distribución de recencia")
-    fig3 = px.histogram(
-        df,
-        x="recencia_dias",
-        nbins=30,
-        color_discrete_sequence=[NEGRO],
+
+    # Binning manual (en vez de px.histogram directo) para poder colorear
+    # cada barra según su propio valor — más días sin actividad = más
+    # urgencia = más rojo, usando la misma ESCALA_ROJA que el resto de la
+    # app usa para "riesgo/potencial". Así el gradiente no es solo estético
+    # (como en el ejemplo de referencia): cuenta la misma historia de
+    # negocio que el resto del Dashboard.
+    conteos, bordes = np.histogram(df["recencia_dias"], bins=30)
+    centros = (bordes[:-1] + bordes[1:]) / 2
+    df_bins_recencia = pd.DataFrame({
+        "centro": centros,
+        "clientes": conteos,
+        "rango": [f"{int(bordes[i])}–{int(bordes[i+1])} días" for i in range(len(bordes) - 1)],
+    })
+
+    fig3 = px.bar(
+        df_bins_recencia,
+        x="centro",
+        y="clientes",
+        color="centro",
+        color_continuous_scale=ESCALA_ROJA,
         title="Días desde última sesión",
-        labels={"recencia_dias": "Días"},
+        labels={"centro": "Días", "clientes": "Clientes"},
+        custom_data=["rango"],
     )
+    fig3.update_traces(
+        marker_line_color="#FFFFFF",
+        marker_line_width=1.5,
+        hovertemplate="%{customdata[0]}<br>%{y:,} clientes<extra></extra>",
+    )
+    fig3.update_layout(bargap=0.12, coloraxis_showscale=False)
     st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
 
 with col_der2:
@@ -445,6 +469,8 @@ with col_der2:
         annotation_text=f"${umbral:,}",
     )
     fig4.update_xaxes(range=[0, eje_max])
+    fig4.update_traces(marker_line_color="#FFFFFF", marker_line_width=1.5)
+    fig4.update_layout(bargap=0.12)
     st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
     if n_outliers > 0:
         st.caption(f"+{n_outliers:,} clientes con carrito sobre ${eje_max:,.0f} (fuera del rango visible, para no aplastar la escala).")
