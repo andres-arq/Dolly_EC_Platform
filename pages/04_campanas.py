@@ -93,6 +93,50 @@ if info:
 divisor()
 
 # ==============================================
+# ESTADO DE TODAS LAS CAMPAÑAS
+# ==============================================
+st.subheader("Estado de todas las campañas")
+st.caption("La fila resaltada en blanco es el segmento que tienes seleccionado arriba.")
+
+filas = []
+for seg, config in plantillas.items():
+    info_seg = stats_dict.get(seg, {})
+    variantes_seg = config.get("variantes", {})
+    asunto_a = variantes_seg.get("A", {}).get("asunto", "")
+    asunto_b = variantes_seg.get("B", {}).get("asunto", "")
+    filas.append({
+        "Segmento":       seg,
+        "Estado":         "✅ Activa" if config.get("activa") else "⏸️ Inactiva",
+        "Clientes":       info_seg.get("clientes", 0),
+        "% Newsletter":   info_seg.get("pct_newsletter", 0),
+        "% Email":        info_seg.get("pct_email", 0),
+        "Hipótesis A/B":  config.get("hipotesis_ab", ""),
+        "Asunto A":       (asunto_a[:40] + "...") if len(asunto_a) > 40 else asunto_a,
+        "Asunto B":       (asunto_b[:40] + "...") if len(asunto_b) > 40 else asunto_b,
+        "Último envío":   config.get("ultimo_envio") or "Nunca",
+    })
+
+df_estado = pd.DataFrame(filas).sort_values("Clientes", ascending=False)
+
+
+def _resaltar_segmento_seleccionado(fila):
+    """Fondo blanco + texto negro en la fila del segmento activo en el selector
+    de arriba — cuidando que el texto cambie de blanco a negro junto con el
+    fondo, para que siga siendo legible."""
+    if fila["Segmento"] == segmento_sel:
+        return ["background-color: #FFFFFF; color: #1A1A1A; font-weight: 700;"] * len(fila)
+    return [""] * len(fila)
+
+
+st.dataframe(
+    df_estado.style.apply(_resaltar_segmento_seleccionado, axis=1),
+    use_container_width=True,
+    hide_index=True,
+)
+
+divisor()
+
+# ==============================================
 # EDITOR DE PLANTILLA — VARIANTES A/B
 # ==============================================
 plantilla_actual = plantillas.get(segmento_sel, {})
@@ -224,34 +268,6 @@ with col_btn1:
 with col_btn2:
     if st.button("↩️ Restaurar original", use_container_width=True):
         st.rerun()
-
-divisor()
-
-# ==============================================
-# RESUMEN DE TODAS LAS CAMPAÑAS
-# ==============================================
-st.subheader("Estado de todas las campañas")
-
-filas = []
-for seg, config in plantillas.items():
-    info_seg = stats_dict.get(seg, {})
-    variantes_seg = config.get("variantes", {})
-    asunto_a = variantes_seg.get("A", {}).get("asunto", "")
-    asunto_b = variantes_seg.get("B", {}).get("asunto", "")
-    filas.append({
-        "Segmento":       seg,
-        "Estado":         "✅ Activa" if config.get("activa") else "⏸️ Inactiva",
-        "Clientes":       info_seg.get("clientes", 0),
-        "% Newsletter":   info_seg.get("pct_newsletter", 0),
-        "% Email":        info_seg.get("pct_email", 0),
-        "Hipótesis A/B":  config.get("hipotesis_ab", ""),
-        "Asunto A":       (asunto_a[:40] + "...") if len(asunto_a) > 40 else asunto_a,
-        "Asunto B":       (asunto_b[:40] + "...") if len(asunto_b) > 40 else asunto_b,
-        "Último envío":   config.get("ultimo_envio") or "Nunca",
-    })
-
-df_estado = pd.DataFrame(filas).sort_values("Clientes", ascending=False)
-st.dataframe(df_estado, use_container_width=True, hide_index=True)
 
 divisor()
 
