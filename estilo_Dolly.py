@@ -88,10 +88,7 @@ def aplicar_estilo():
         }}
         /* Oculta SOLO la lista de links nativa que Streamlit genera
            automáticamente desde la carpeta pages/ — usamos el testid de la
-           lista (stSidebarNavItems), no el del contenedor (stSidebarNav),
-           porque ese contenedor envuelve también la flecha de colapso y,
-           en algunas versiones, puede terminar tapando el sidebar_dolly()
-           custom que se agrega después si se oculta el div completo. */
+           lista (stSidebarNavItems), no el del contenedor (stSidebarNav). */
         ul[data-testid="stSidebarNavItems"] {{
             display: none;
         }}
