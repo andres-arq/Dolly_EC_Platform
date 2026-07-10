@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import sys
 import os
 
@@ -387,95 +388,105 @@ with col_ruta3:
 
 divisor()
 
-col_izq2, col_der2 = st.columns(2, gap="large")
+st.subheader("Distribución de recencia")
 
-with col_izq2:
-    st.subheader("Distribución de recencia")
+# Binning manual (en vez de px.histogram directo) para poder colorear cada
+# barra según su propio valor. Gradiente invertido a propósito: el bin más
+# reciente (menos días) recibe el color más denso/vivo, y se va difuminando
+# a medida que aumenta la recencia — la intensidad del color representa
+# "qué tan vivo" está ese grupo de clientes.
+conteos, bordes = np.histogram(df["recencia_dias"], bins=30)
+centros = (bordes[:-1] + bordes[1:]) / 2
+df_bins_recencia = pd.DataFrame({
+    "centro": centros,
+    "clientes": conteos,
+    "rango": [f"{int(bordes[i])}–{int(bordes[i+1])} días" for i in range(len(bordes) - 1)],
+})
 
-    # Binning manual (en vez de px.histogram directo) para poder colorear
-    # cada barra según su propio valor — más días sin actividad = más
-    # urgencia = más rojo, usando la misma ESCALA_ROJA que el resto de la
-    # app usa para "riesgo/potencial". Así el gradiente no es solo estético
-    # (como en el ejemplo de referencia): cuenta la misma historia de
-    # negocio que el resto del Dashboard.
-    conteos, bordes = np.histogram(df["recencia_dias"], bins=30)
-    centros = (bordes[:-1] + bordes[1:]) / 2
-    df_bins_recencia = pd.DataFrame({
-        "centro": centros,
-        "clientes": conteos,
-        "rango": [f"{int(bordes[i])}–{int(bordes[i+1])} días" for i in range(len(bordes) - 1)],
-    })
+ESCALA_ROJA_INVERTIDA = [[0, VINO], [0.5, ROJO], [1, "#F3D6D3"]]
 
-    fig3 = px.bar(
-        df_bins_recencia,
-        x="centro",
-        y="clientes",
-        color="centro",
-        color_continuous_scale=ESCALA_ROJA,
-        title="Días desde última sesión",
-        labels={"centro": "Días", "clientes": "Clientes"},
-        custom_data=["rango"],
-    )
-    fig3.update_traces(
-        marker_line_color="#FFFFFF",
-        marker_line_width=1.5,
-        hovertemplate="%{customdata[0]}<br>%{y:,} clientes<extra></extra>",
-    )
-    fig3.update_layout(bargap=0.12, coloraxis_showscale=False)
-    st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
+fig3 = px.bar(
+    df_bins_recencia,
+    x="centro",
+    y="clientes",
+    color="centro",
+    color_continuous_scale=ESCALA_ROJA_INVERTIDA,
+    title="Días desde última sesión",
+    labels={"centro": "Días", "clientes": "Clientes"},
+    custom_data=["rango"],
+)
+fig3.update_traces(
+    marker_line_color="#FFFFFF",
+    marker_line_width=1.5,
+    hovertemplate="%{customdata[0]}<br>%{y:,} clientes<extra></extra>",
+    name="Clientes",
+)
 
-with col_der2:
-    st.subheader("Distribución de monto de carrito")
-    df_monto = df[df["monto_carrito"] > 0]
-    umbral = PARAMS["ticket_umbral_flete_gratis"]
+# Línea de tendencia — promedio móvil de 3 bins para suavizar el "diente de
+# sierra" propio del binning, sin ocultar las barras reales debajo.
+tendencia = pd.Series(conteos).rolling(window=3, center=True, min_periods=1).mean()
+fig3.add_trace(go.Scatter(
+    x=centros, y=tendencia,
+    mode="lines",
+    line=dict(color=NEGRO, width=2.5, shape="spline"),
+    name="Tendencia",
+    hoverinfo="skip",
+))
 
-    # Acotamos el eje a una zona donde realmente vive la decisión de negocio
-    # (cerca del umbral de flete gratis) — el histograma completo hasta el
-    # máximo real queda dominado por unos pocos carritos gigantes y aplasta
-    # todo lo demás contra el eje Y. Los outliers no se ocultan: se cuentan
-    # aparte en el caption de abajo.
-    eje_max = max(umbral * 3, df_monto["monto_carrito"].quantile(0.95))
-    df_monto_visible = df_monto[df_monto["monto_carrito"] <= eje_max]
-    n_outliers = len(df_monto) - len(df_monto_visible)
-
-    fig4 = px.histogram(
-        df_monto_visible,
-        x="monto_carrito",
-        nbins=30,
-        color_discrete_sequence=[VINO],
-        title="Valor del carrito (CLP)",
-        labels={"monto_carrito": "CLP"},
-    )
-    # Bandas de color: convierte la línea de umbral en una zona accionable —
-    # "bajo el umbral" (candidatos a empujar con un cross-sell/recordatorio)
-    # vs. "ya calificó para flete gratis", en vez de solo una referencia
-    # descriptiva.
-    fig4.add_vrect(
-        x0=0, x1=umbral,
-        fillcolor=ROJO, opacity=0.10, line_width=0,
-        annotation_text="Bajo el umbral", annotation_position="top left",
-        annotation_font_color=ROJO,
-    )
-    fig4.add_vrect(
-        x0=umbral, x1=eje_max,
-        fillcolor=GRIS_CLARO, opacity=0.25, line_width=0,
-        annotation_text="Flete gratis ✓", annotation_position="top right",
-        annotation_font_color=TEXTO_SECUNDARIO,
-    )
-    fig4.add_vline(
-        x=umbral,
-        line_dash="dash",
-        line_color=ROJO,
-        annotation_text=f"${umbral:,}",
-    )
-    fig4.update_xaxes(range=[0, eje_max])
-    fig4.update_traces(marker_line_color="#FFFFFF", marker_line_width=1.5)
-    fig4.update_layout(bargap=0.12)
-    st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
-    if n_outliers > 0:
-        st.caption(f"+{n_outliers:,} clientes con carrito sobre ${eje_max:,.0f} (fuera del rango visible, para no aplastar la escala).")
+fig3.update_layout(bargap=0.12, coloraxis_showscale=False, showlegend=True, legend_title_text="")
+st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
 
 divisor()
+
+st.subheader("Distribución de monto de carrito")
+df_monto = df[df["monto_carrito"] > 0]
+umbral = PARAMS["ticket_umbral_flete_gratis"]
+
+# Acotamos el eje a una zona donde realmente vive la decisión de negocio
+# (cerca del umbral de flete gratis) — el histograma completo hasta el
+# máximo real queda dominado por unos pocos carritos gigantes y aplasta
+# todo lo demás contra el eje Y. Los outliers no se ocultan: se cuentan
+# aparte en el caption de abajo.
+eje_max = max(umbral * 3, df_monto["monto_carrito"].quantile(0.95))
+df_monto_visible = df_monto[df_monto["monto_carrito"] <= eje_max]
+n_outliers = len(df_monto) - len(df_monto_visible)
+
+fig4 = px.histogram(
+    df_monto_visible,
+    x="monto_carrito",
+    nbins=30,
+    color_discrete_sequence=[VINO],
+    title="Valor del carrito (CLP)",
+    labels={"monto_carrito": "CLP"},
+)
+# Bandas de color: convierte la línea de umbral en una zona accionable —
+# "bajo el umbral" (candidatos a empujar con un cross-sell/recordatorio)
+# vs. "ya calificó para flete gratis", en vez de solo una referencia
+# descriptiva.
+fig4.add_vrect(
+    x0=0, x1=umbral,
+    fillcolor=ROJO, opacity=0.10, line_width=0,
+    annotation_text="Bajo el umbral", annotation_position="top left",
+    annotation_font_color=ROJO,
+)
+fig4.add_vrect(
+    x0=umbral, x1=eje_max,
+    fillcolor=GRIS_CLARO, opacity=0.25, line_width=0,
+    annotation_text="Flete gratis ✓", annotation_position="top right",
+    annotation_font_color=TEXTO_SECUNDARIO,
+)
+fig4.add_vline(
+    x=umbral,
+    line_dash="dash",
+    line_color=ROJO,
+    annotation_text=f"${umbral:,}",
+)
+fig4.update_xaxes(range=[0, eje_max])
+fig4.update_traces(marker_line_color="#FFFFFF", marker_line_width=1.5)
+fig4.update_layout(bargap=0.12)
+st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
+if n_outliers > 0:
+    st.caption(f"+{n_outliers:,} clientes con carrito sobre ${eje_max:,.0f} (fuera del rango visible, para no aplastar la escala).")
 
 divisor()
 
