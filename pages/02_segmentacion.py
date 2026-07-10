@@ -107,6 +107,7 @@ with col_izq:
         },
         hover_data=["userId", "paso_abandono"],
     )
+    fig.update_traces(marker=dict(opacity=0.65, size=9))
     fig.add_hline(
         y=PARAMS["ticket_umbral_flete_gratis"],
         line_dash="dash",
@@ -119,14 +120,25 @@ with col_izq:
 with col_der:
     df_paso = df_filtrado[df_filtrado["paso_abandono"] != "Desconocido"]
     if not df_paso.empty:
-        fig2 = px.pie(
-            df_paso,
-            names="paso_abandono",
-            title="Paso de abandono (clientes con dato)",
-            color_discrete_sequence=SECUENCIA_CATEGORICA,
-        )
-        fig2.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
+        n_categorias = df_paso["paso_abandono"].nunique()
+        if n_categorias == 1:
+            categoria_unica = df_paso["paso_abandono"].iloc[0]
+            st.markdown("**Paso de abandono (clientes con dato)**")
+            kpi_card(
+                "100% de estos clientes",
+                categoria_unica,
+                color=ROJO,
+                ayuda="Todos los clientes con dato en este filtro abandonaron en el mismo paso.",
+            )
+        else:
+            fig2 = px.pie(
+                df_paso,
+                names="paso_abandono",
+                title="Paso de abandono (clientes con dato)",
+                color_discrete_sequence=SECUENCIA_CATEGORICA,
+            )
+            fig2.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
     else:
         st.info("No hay clientes con paso de abandono conocido en este filtro.")
 
