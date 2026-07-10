@@ -95,65 +95,6 @@ with col4:
 divisor()
 
 # ==============================================
-# PASO DE ABANDONO
-# ==============================================
-df_paso = df_filtrado[df_filtrado["paso_abandono"] != "Desconocido"]
-if not df_paso.empty:
-    n_categorias = df_paso["paso_abandono"].nunique()
-    if n_categorias == 1:
-        categoria_unica = df_paso["paso_abandono"].iloc[0]
-        st.markdown("**Paso de abandono (clientes con dato)**")
-        kpi_card(
-            "100% de estos clientes",
-            categoria_unica,
-            color=ROJO,
-            ayuda="Todos los clientes con dato en este filtro abandonaron en el mismo paso.",
-        )
-    else:
-        fig2 = px.pie(
-            df_paso,
-            names="paso_abandono",
-            title="Paso de abandono (clientes con dato)",
-            color_discrete_sequence=SECUENCIA_CATEGORICA,
-        )
-        fig2.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
-else:
-    st.info("No hay clientes con paso de abandono conocido en este filtro.")
-
-divisor()
-
-# ==============================================
-# TABLA DE CLIENTES
-# ==============================================
-st.subheader("Detalle de clientes")
-
-columnas_mostrar = [
-    "userId", "segmento", "recencia_dias", "monto_carrito",
-    "ticket_prom", "frecuencia", "paso_abandono",
-    "sobre_umbral", "tiene_newsletter", "tiene_telefono",
-]
-
-columnas_existentes = [c for c in columnas_mostrar if c in df_filtrado.columns]
-
-st.dataframe(
-    df_filtrado[columnas_existentes].sort_values("monto_carrito", ascending=False),
-    use_container_width=True,
-    hide_index=True,
-)
-
-# Botón de descarga
-csv = df_filtrado[columnas_existentes].to_csv(index=False, encoding="utf-8-sig")
-st.download_button(
-    label="⬇️  Descargar segmento filtrado como CSV",
-    data=csv,
-    file_name=f"dolly_segmento_{segmento_seleccionado.lower().replace(' ', '_')}.csv",
-    mime="text/csv",
-)
-
-divisor()
-
-# ==============================================
 # PANORAMA GENERAL — TODOS LOS SEGMENTOS
 # (trasladado desde 01_dashboard.py — este es el lugar único para explorar
 # y entender la base completa; el Dashboard se enfoca en urgencia del día)
@@ -175,7 +116,7 @@ else:
     stats_panorama = calcular_estadisticas(df_panorama)
 
     # ==============================================
-    # GRÁFICOS — TORTA Y BARRA
+    # GRÁFICOS — DOS TORTAS LADO A LADO
     # ==============================================
     col_izq_pan, col_der_pan = st.columns(2, gap="large")
 
@@ -201,42 +142,71 @@ else:
         st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
 
     with col_der_pan:
-        SEGMENTOS_EXCLUIDOS_PANORAMA = SEGMENTOS_RECUPERABLES + ["Perdido", "Inactivo"]
-
-        df_seg = pd.DataFrame({
-            "Segmento": list(stats_panorama["clientes_por_segmento"].keys()),
-            "Clientes": list(stats_panorama["clientes_por_segmento"].values()),
-        })
-        df_seg = df_seg[~df_seg["Segmento"].isin(SEGMENTOS_EXCLUIDOS_PANORAMA)]
-        df_seg = df_seg.sort_values("Clientes", ascending=True)
-
-        # Color por accionabilidad (mismo orden de urgencia que el resto de
-        # la app) en vez de por volumen — así el segmento más urgente destaca
-        # aunque tenga pocos clientes, y no al revés.
-        n_segmentos_totales = max(len(ORDEN_PRIORIDAD_SEGMENTOS), 1)
-        mapa_color_prioridad = {
-            seg: px.colors.sample_colorscale(
-                [GRIS_CLARO, VINO, ROJO],
-                [1 - (rank - 1) / max(n_segmentos_totales - 1, 1)],
-            )[0]
-            for seg, rank in ORDEN_PRIORIDAD_SEGMENTOS.items()
-        }
-
-        if df_seg.empty:
-            st.info("Los segmentos elegidos quedan todos excluidos de este gráfico (Perdido/Inactivo/Recuperables).")
+        df_paso = df_panorama[df_panorama["paso_abandono"] != "Desconocido"]
+        if not df_paso.empty:
+            n_categorias = df_paso["paso_abandono"].nunique()
+            if n_categorias == 1:
+                categoria_unica = df_paso["paso_abandono"].iloc[0]
+                st.markdown("**Paso de abandono (clientes con dato)**")
+                kpi_card(
+                    "100% de estos clientes",
+                    categoria_unica,
+                    color=ROJO,
+                    ayuda="Todos los clientes con dato en este filtro abandonaron en el mismo paso.",
+                )
+            else:
+                fig_paso = px.pie(
+                    df_paso,
+                    names="paso_abandono",
+                    title="Paso de abandono (clientes con dato)",
+                    color_discrete_sequence=SECUENCIA_CATEGORICA,
+                )
+                fig_paso.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(estilizar_grafico(fig_paso), use_container_width=True, theme=None)
         else:
-            fig_barra_pan = px.bar(
-                df_seg,
-                x="Clientes",
-                y="Segmento",
-                orientation="h",
-                color="Segmento",
-                color_discrete_map=mapa_color_prioridad,
-                title="Clientes por segmento (excluye Perdido/Inactivo/Recuperables)",
-            )
-            fig_barra_pan.update_layout(showlegend=False, yaxis_title=None)
-            fig_barra_pan.update_yaxes(automargin=True)
-            st.plotly_chart(estilizar_grafico(fig_barra_pan), use_container_width=True, theme=None)
+            st.info("No hay clientes con paso de abandono conocido en este filtro.")
+
+    divisor()
+
+    # ==============================================
+    # GRÁFICO — BARRA CLIENTES POR SEGMENTO (ancho completo)
+    # ==============================================
+    SEGMENTOS_EXCLUIDOS_PANORAMA = SEGMENTOS_RECUPERABLES + ["Perdido", "Inactivo"]
+
+    df_seg = pd.DataFrame({
+        "Segmento": list(stats_panorama["clientes_por_segmento"].keys()),
+        "Clientes": list(stats_panorama["clientes_por_segmento"].values()),
+    })
+    df_seg = df_seg[~df_seg["Segmento"].isin(SEGMENTOS_EXCLUIDOS_PANORAMA)]
+    df_seg = df_seg.sort_values("Clientes", ascending=True)
+
+    # Color por accionabilidad (mismo orden de urgencia que el resto de
+    # la app) en vez de por volumen — así el segmento más urgente destaca
+    # aunque tenga pocos clientes, y no al revés.
+    n_segmentos_totales = max(len(ORDEN_PRIORIDAD_SEGMENTOS), 1)
+    mapa_color_prioridad = {
+        seg: px.colors.sample_colorscale(
+            [GRIS_CLARO, VINO, ROJO],
+            [1 - (rank - 1) / max(n_segmentos_totales - 1, 1)],
+        )[0]
+        for seg, rank in ORDEN_PRIORIDAD_SEGMENTOS.items()
+    }
+
+    if df_seg.empty:
+        st.info("Los segmentos elegidos quedan todos excluidos de este gráfico (Perdido/Inactivo/Recuperables).")
+    else:
+        fig_barra_pan = px.bar(
+            df_seg,
+            x="Clientes",
+            y="Segmento",
+            orientation="h",
+            color="Segmento",
+            color_discrete_map=mapa_color_prioridad,
+            title="Clientes por segmento (excluye Perdido/Inactivo/Recuperables)",
+        )
+        fig_barra_pan.update_layout(showlegend=False, yaxis_title=None)
+        fig_barra_pan.update_yaxes(automargin=True)
+        st.plotly_chart(estilizar_grafico(fig_barra_pan), use_container_width=True, theme=None)
 
     divisor()
 
@@ -350,3 +320,33 @@ else:
         st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
         if n_outliers > 0:
             st.caption(f"+{n_outliers:,} clientes con carrito sobre ${eje_max:,.0f} (fuera del rango visible, para no aplastar la escala).")
+
+divisor()
+
+# ==============================================
+# TABLA DE CLIENTES
+# ==============================================
+st.subheader("Detalle de clientes")
+
+columnas_mostrar = [
+    "userId", "segmento", "recencia_dias", "monto_carrito",
+    "ticket_prom", "frecuencia", "paso_abandono",
+    "sobre_umbral", "tiene_newsletter", "tiene_telefono",
+]
+
+columnas_existentes = [c for c in columnas_mostrar if c in df_filtrado.columns]
+
+st.dataframe(
+    df_filtrado[columnas_existentes].sort_values("monto_carrito", ascending=False),
+    use_container_width=True,
+    hide_index=True,
+)
+
+# Botón de descarga
+csv = df_filtrado[columnas_existentes].to_csv(index=False, encoding="utf-8-sig")
+st.download_button(
+    label="⬇️  Descargar segmento filtrado como CSV",
+    data=csv,
+    file_name=f"dolly_segmento_{segmento_seleccionado.lower().replace(' ', '_')}.csv",
+    mime="text/csv",
+)
