@@ -95,58 +95,31 @@ with col4:
 divisor()
 
 # ==============================================
-# GRÁFICOS
+# PASO DE ABANDONO
 # ==============================================
-col_izq, col_der = st.columns(2)
-
-with col_izq:
-    fig = px.scatter(
-        df_filtrado,
-        x="recencia_dias",
-        y="monto_carrito",
-        color="segmento",
-        color_discrete_sequence=SECUENCIA_CATEGORICA,
-        title="Recencia vs Monto por segmento",
-        labels={
-            "recencia_dias":  "Días desde última sesión",
-            "monto_carrito":  "Monto carrito (CLP)",
-        },
-        hover_data=["userId", "paso_abandono"],
-    )
-    fig.update_traces(marker=dict(opacity=0.65, size=9))
-    fig.add_hline(
-        y=PARAMS["ticket_umbral_flete_gratis"],
-        line_dash="dash",
-        line_color=ROJO,
-        annotation_text="Umbral flete gratis",
-    )
-    fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
-
-with col_der:
-    df_paso = df_filtrado[df_filtrado["paso_abandono"] != "Desconocido"]
-    if not df_paso.empty:
-        n_categorias = df_paso["paso_abandono"].nunique()
-        if n_categorias == 1:
-            categoria_unica = df_paso["paso_abandono"].iloc[0]
-            st.markdown("**Paso de abandono (clientes con dato)**")
-            kpi_card(
-                "100% de estos clientes",
-                categoria_unica,
-                color=ROJO,
-                ayuda="Todos los clientes con dato en este filtro abandonaron en el mismo paso.",
-            )
-        else:
-            fig2 = px.pie(
-                df_paso,
-                names="paso_abandono",
-                title="Paso de abandono (clientes con dato)",
-                color_discrete_sequence=SECUENCIA_CATEGORICA,
-            )
-            fig2.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
+df_paso = df_filtrado[df_filtrado["paso_abandono"] != "Desconocido"]
+if not df_paso.empty:
+    n_categorias = df_paso["paso_abandono"].nunique()
+    if n_categorias == 1:
+        categoria_unica = df_paso["paso_abandono"].iloc[0]
+        st.markdown("**Paso de abandono (clientes con dato)**")
+        kpi_card(
+            "100% de estos clientes",
+            categoria_unica,
+            color=ROJO,
+            ayuda="Todos los clientes con dato en este filtro abandonaron en el mismo paso.",
+        )
     else:
-        st.info("No hay clientes con paso de abandono conocido en este filtro.")
+        fig2 = px.pie(
+            df_paso,
+            names="paso_abandono",
+            title="Paso de abandono (clientes con dato)",
+            color_discrete_sequence=SECUENCIA_CATEGORICA,
+        )
+        fig2.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
+else:
+    st.info("No hay clientes con paso de abandono conocido en este filtro.")
 
 divisor()
 
@@ -187,25 +160,18 @@ divisor()
 # ==============================================
 st.subheader("Panorama general de la base")
 st.caption(
-    "Torta con todos los segmentos. El gráfico de barras excluye "
-    "Perdido, Inactivo y los 4 Recuperable (ya tienen su propio análisis en "
-    "los filtros de arriba) para que el resto de los segmentos —donde también "
-    "hay decisiones que tomar— no quede invisible al lado de esos volúmenes tan grandes."
+    "Usa los mismos filtros de arriba (Segmento, Rango de monto, Rango de "
+    "recencia). El gráfico de barras excluye Perdido, Inactivo y los 4 "
+    "Recuperable (ya tienen su propio análisis en 'Oportunidades de "
+    "recuperación' del Dashboard) para que el resto de los segmentos —donde "
+    "también hay decisiones que tomar— no quede invisible al lado de esos "
+    "volúmenes tan grandes."
 )
 
-segmentos_disponibles_panorama = sorted(df["segmento"].unique().tolist())
-segmentos_filtro_panorama = st.multiselect(
-    "Filtrar esta sección por segmento",
-    options=segmentos_disponibles_panorama,
-    default=segmentos_disponibles_panorama,
-    help="Afecta solo los 4 gráficos de Panorama general (torta, barras y las "
-         "dos distribuciones de abajo) — independiente de los filtros de arriba.",
-)
-
-if not segmentos_filtro_panorama:
-    st.warning("Selecciona al menos un segmento para ver el panorama.")
+if df_filtrado.empty:
+    st.warning("No hay clientes que calcen con los filtros de arriba.")
 else:
-    df_panorama = df[df["segmento"].isin(segmentos_filtro_panorama)]
+    df_panorama = df_filtrado
     stats_panorama = calcular_estadisticas(df_panorama)
 
     # ==============================================
