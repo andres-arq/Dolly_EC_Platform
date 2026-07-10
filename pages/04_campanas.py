@@ -155,9 +155,12 @@ for letra, tab in zip(["A", "B"], [tab_a, tab_b]):
                 key=f"mensaje_{segmento_sel}_{letra}",
             )
             cta = st.text_input(
-                "CTA (texto del botón)",
+                "Frase de cierre (opcional — ya NO es un botón ni link en el correo real)",
                 value=datos_variante.get("cta", ""),
                 placeholder="Ej: Finalizar mi compra ahora",
+                help="Antes se usaba como texto de un botón. El HTML final del correo ya no incluye "
+                     "botones ni links (por riesgo de verse como phishing), así que este texto solo "
+                     "se guarda como referencia de la hipótesis — no aparece en el correo enviado.",
                 key=f"cta_{segmento_sel}_{letra}",
             )
 
@@ -175,12 +178,13 @@ for letra, tab in zip(["A", "B"], [tab_a, tab_b]):
             mensaje_preview = mensaje_preview.replace("{{brecha_flete}}", f"${brecha_ejemplo:,.0f}")
             mensaje_preview = mensaje_preview.replace("{{segmento}}", segmento_sel)
 
-            st.markdown(f"**Para:** cliente@ejemplo.cl")
+            st.markdown(f"**Para:** `cliente@ejemplo.cl`")
             st.markdown(f"**Asunto:** {asunto if asunto else '_(sin asunto)_'}")
             divisor(margen_top=8, margen_bottom=8)
             st.markdown(mensaje_preview if mensaje_preview else "_(mensaje vacío)_")
+            st.markdown(f"**Te esperamos en dolly.cl**")
             if cta:
-                st.markdown(f"🔘 **{cta}**")
+                st.caption(f"📝 Frase de cierre guardada (no aparece en el correo): \"{cta}\"")
 
             html_generado = generar_html_email(asunto, mensaje, cta)
             archivo_html = nombre_archivo_html(prioridad_segmento, segmento_sel, letra)
