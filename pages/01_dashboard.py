@@ -403,21 +403,51 @@ with col_izq2:
 with col_der2:
     st.subheader("Distribución de monto de carrito")
     df_monto = df[df["monto_carrito"] > 0]
+    umbral = PARAMS["ticket_umbral_flete_gratis"]
+
+    # Acotamos el eje a una zona donde realmente vive la decisión de negocio
+    # (cerca del umbral de flete gratis) — el histograma completo hasta el
+    # máximo real queda dominado por unos pocos carritos gigantes y aplasta
+    # todo lo demás contra el eje Y. Los outliers no se ocultan: se cuentan
+    # aparte en el caption de abajo.
+    eje_max = max(umbral * 3, df_monto["monto_carrito"].quantile(0.95))
+    df_monto_visible = df_monto[df_monto["monto_carrito"] <= eje_max]
+    n_outliers = len(df_monto) - len(df_monto_visible)
+
     fig4 = px.histogram(
-        df_monto,
+        df_monto_visible,
         x="monto_carrito",
         nbins=30,
         color_discrete_sequence=[VINO],
         title="Valor del carrito (CLP)",
         labels={"monto_carrito": "CLP"},
     )
+    # Bandas de color: convierte la línea de umbral en una zona accionable —
+    # "bajo el umbral" (candidatos a empujar con un cross-sell/recordatorio)
+    # vs. "ya calificó para flete gratis", en vez de solo una referencia
+    # descriptiva.
+    fig4.add_vrect(
+        x0=0, x1=umbral,
+        fillcolor=ROJO, opacity=0.10, line_width=0,
+        annotation_text="Bajo el umbral", annotation_position="top left",
+        annotation_font_color=ROJO,
+    )
+    fig4.add_vrect(
+        x0=umbral, x1=eje_max,
+        fillcolor=GRIS_CLARO, opacity=0.25, line_width=0,
+        annotation_text="Flete gratis ✓", annotation_position="top right",
+        annotation_font_color=TEXTO_SECUNDARIO,
+    )
     fig4.add_vline(
-        x=PARAMS["ticket_umbral_flete_gratis"],
+        x=umbral,
         line_dash="dash",
         line_color=ROJO,
-        annotation_text=f"Umbral flete ${PARAMS['ticket_umbral_flete_gratis']:,}",
+        annotation_text=f"${umbral:,}",
     )
+    fig4.update_xaxes(range=[0, eje_max])
     st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
+    if n_outliers > 0:
+        st.caption(f"+{n_outliers:,} clientes con carrito sobre ${eje_max:,.0f} (fuera del rango visible, para no aplastar la escala).")
 
 divisor()
 
