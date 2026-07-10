@@ -15,12 +15,13 @@ from pipeline_Dolly import (
     RUTA_BASE,
 )
 from estilo_Dolly import (
-    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor,
     NEGRO, ROJO, VINO, GRIS,
 )
 
 st.set_page_config(page_title="Actualizar Data — Dolly", page_icon="⬆️", layout="wide")
 aplicar_estilo()
+sidebar_dolly()
 
 encabezado_pagina(
     modulo="Módulo 06 · Actualizar data",
