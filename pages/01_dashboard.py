@@ -15,12 +15,13 @@ from pipeline_Dolly import (
     DESCRIPCION_SEGMENTOS, ORDEN_PRIORIDAD_SEGMENTOS, SEGMENTOS_RECUPERABLES, PARAMS,
 )
 from estilo_Dolly import (
-    aplicar_estilo, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
+    aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
     NEGRO, ROJO, VINO, GRIS, GRIS_CLARO, CARD, BORDE, TEXTO_SECUNDARIO, ESCALA_NEUTRA, ESCALA_ROJA,
 )
 
 st.set_page_config(page_title="Dashboard — Dolly", page_icon="📊", layout="wide")
 aplicar_estilo()
+sidebar_dolly()
 
 encabezado_pagina(
     modulo="Módulo 01 · Dashboard",
