@@ -62,6 +62,47 @@ st.subheader("🗺️ Mapa de cobertura")
 
 df_puntos_mapa = df_puntos.dropna(subset=["latitud", "longitud"])
 
+
+def _calcular_zoom_y_centro(df_puntos_geo, padding_grados=0.3):
+    """
+    Calcula un centro y zoom razonables a partir del bounding box real de los
+    puntos, en vez de un center/zoom fijo — evita mostrar territorio sin
+    puntos (ej. Argentina) cuando los puntos reales están agrupados en una
+    zona chica del mapa.
+    """
+    if df_puntos_geo.empty:
+        return {"lat": -40.0, "lon": -73.0}, 5
+
+    lat_min, lat_max = df_puntos_geo["latitud"].min(), df_puntos_geo["latitud"].max()
+    lon_min, lon_max = df_puntos_geo["longitud"].min(), df_puntos_geo["longitud"].max()
+
+    centro = {
+        "lat": (lat_min + lat_max) / 2,
+        "lon": (lon_min + lon_max) / 2,
+    }
+
+    rango_max = max(lat_max - lat_min, lon_max - lon_min) + padding_grados
+    # Tabla aproximada rango(°) -> zoom para mapbox/OSM (a mayor rango, menor zoom)
+    if rango_max <= 0.05:
+        zoom = 12
+    elif rango_max <= 0.1:
+        zoom = 11
+    elif rango_max <= 0.3:
+        zoom = 9
+    elif rango_max <= 0.6:
+        zoom = 8
+    elif rango_max <= 1.2:
+        zoom = 7
+    elif rango_max <= 2.5:
+        zoom = 6
+    else:
+        zoom = 5
+
+    return centro, zoom
+
+
+centro_mapa, zoom_mapa = _calcular_zoom_y_centro(df_puntos_mapa)
+
 fig_mapa = px.scatter_mapbox(
     df_puntos_mapa,
     lat="latitud",
@@ -70,12 +111,13 @@ fig_mapa = px.scatter_mapbox(
     hover_data=["ciudad", "region", "estado"],
     color="region",
     color_discrete_sequence=SECUENCIA_CATEGORICA,
-    zoom=5,
-    center={"lat": -40.0, "lon": -73.0},
+    zoom=zoom_mapa,
+    center=centro_mapa,
     height=450,
     title="Puntos Blue Express — Sur de Chile",
 )
 fig_mapa.update_layout(mapbox_style="open-street-map")
+fig_mapa.update_traces(marker=dict(size=13))
 fig_mapa.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 0})
 st.plotly_chart(estilizar_grafico(fig_mapa), use_container_width=True, theme=None)
 
