@@ -4,7 +4,7 @@
 # =============================================================================
 
 import streamlit as st
-from estilo_Dolly import aplicar_estilo, feature_card, divisor, NEGRO, ROJO, TEXTO_SECUNDARIO
+from estilo_Dolly import aplicar_estilo, sidebar_dolly, feature_card, divisor, NEGRO, ROJO, TEXTO_SECUNDARIO
 
 st.set_page_config(
     page_title="Dolly — Panel de Gestión",
@@ -13,26 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 aplicar_estilo()
-
-# ==============================================
-# SIDEBAR
-# ==============================================
-st.sidebar.markdown(f"""
-    <div style='font-size:22px; font-weight:700; color:#fff; margin-bottom:0px;'>👟 Dolly Chile</div>
-    <div style='font-size:13px; color:#B7B4AC; margin-bottom:14px;'>Panel de Gestión E-commerce</div>
-""", unsafe_allow_html=True)
-
-st.sidebar.markdown("<hr style='border-top:0.5px solid #3A3A3A; margin:10px 0;'>", unsafe_allow_html=True)
-st.sidebar.markdown("### Navegación")
-st.sidebar.page_link("pages/01_dashboard.py",       label="Dashboard",           icon="📊")
-st.sidebar.page_link("pages/02_segmentacion.py",    label="Segmentación",        icon="👥")
-st.sidebar.page_link("pages/03_perfil_cliente.py",  label="Perfil de Cliente",   icon="👤")
-st.sidebar.page_link("pages/04_campanas.py",        label="Campañas",            icon="📧")
-st.sidebar.page_link("pages/05_blue_express.py",    label="Blue Express",        icon="📍")
-st.sidebar.page_link("pages/06_actualizar_data.py", label="Actualizar Data",     icon="⬆️")
-
-st.sidebar.markdown("<hr style='border-top:0.5px solid #3A3A3A; margin:10px 0;'>", unsafe_allow_html=True)
-st.sidebar.caption("Versión MVP — Capstone 2026")
+sidebar_dolly()
 
 # ==============================================
 # PÁGINA DE INICIO
