@@ -134,7 +134,7 @@ if archivo_subido:
                     "userId", "segmento", "recencia_dias",
                     "monto_carrito", "ticket_prom", "ticket_max",
                     "frecuencia", "paso_abandono", "brecha_flete",
-                    "sobre_umbral", "tiene_telefono", "tiene_newsletter",
+                    "sobre_umbral", "tiene_telefono", "homePhone", "tiene_newsletter",
                     "email", "tiene_email",
                     "es_comprador", "tiene_carrito_abandonado_historico",
                     "producto_id", "categoria_producto", "marca_producto", "departamento_producto",
