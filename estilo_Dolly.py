@@ -86,8 +86,41 @@ def aplicar_estilo():
         .stButton > button[kind="primary"]:hover {{
             background-color: {ROJO};
         }}
+        /* Oculta el nav nativo de Streamlit (lista plana generada automáticamente
+           a partir de la carpeta pages/) — se reemplaza en cada página por
+           sidebar_dolly(), así no queda duplicado con el nav custom. */
+        div[data-testid="stSidebarNav"] {{
+            display: none;
+        }}
     </style>
     """, unsafe_allow_html=True)
+
+
+def sidebar_dolly(pagina_activa=None):
+    """
+    Sidebar de marca Dolly (logo, título, nav con íconos, footer) — se llama
+    en TODAS las páginas (app_Dolly.py y cada pages/0X_*.py), justo después
+    de aplicar_estilo(), para que el sidebar sea idéntico en toda la app y
+    no dependa de que Streamlit muestre su nav nativo (que está oculto por
+    CSS en aplicar_estilo()).
+    """
+    st.sidebar.markdown(f"""
+        <div style='font-size:22px; font-weight:700; color:#fff; margin-bottom:0px;'>👟 Dolly Chile</div>
+        <div style='font-size:13px; color:#B7B4AC; margin-bottom:14px;'>Panel de Gestión E-commerce</div>
+    """, unsafe_allow_html=True)
+
+    st.sidebar.markdown("<hr style='border-top:0.5px solid #3A3A3A; margin:10px 0;'>", unsafe_allow_html=True)
+    st.sidebar.markdown("### Navegación")
+    st.sidebar.page_link("app_Dolly.py",                label="Inicio",              icon="🏠")
+    st.sidebar.page_link("pages/01_dashboard.py",       label="Dashboard",           icon="📊")
+    st.sidebar.page_link("pages/02_segmentacion.py",    label="Segmentación",        icon="👥")
+    st.sidebar.page_link("pages/03_perfil_cliente.py",  label="Perfil de Cliente",   icon="👤")
+    st.sidebar.page_link("pages/04_campanas.py",        label="Campañas",            icon="📧")
+    st.sidebar.page_link("pages/05_blue_express.py",    label="Blue Express",        icon="📍")
+    st.sidebar.page_link("pages/06_actualizar_data.py", label="Actualizar Data",     icon="⬆️")
+
+    st.sidebar.markdown("<hr style='border-top:0.5px solid #3A3A3A; margin:10px 0;'>", unsafe_allow_html=True)
+    st.sidebar.caption("Versión MVP — Capstone 2026")
 
 
 def eyebrow(texto):
