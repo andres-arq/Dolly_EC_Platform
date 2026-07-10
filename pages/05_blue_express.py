@@ -1,220 +1,282 @@
 # =============================================================================
-# 05_blue_express.py — Gestión de puntos Blue Express
+# 06_actualizar_data.py — Carga y actualización de datos
 # =============================================================================
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import (
-    cargar_puntos_blueexpress,
-    guardar_puntos_blueexpress,
-    cargar_perfil_clientes,
-    distancia_haversine,
+    cargar_csv_vtex,
+    segmentar_clientes,
+    PARAMS,
+    RUTA_BASE,
 )
 from estilo_Dolly import (
-    aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
-    NEGRO, ROJO, VINO, GRIS, SECUENCIA_CATEGORICA,
+    aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor,
+    NEGRO, ROJO, VINO, GRIS,
 )
 
-st.set_page_config(page_title="Blue Express — Dolly", page_icon="📍", layout="wide")
+st.set_page_config(page_title="Actualizar Data — Dolly", page_icon="⬆️", layout="wide")
 aplicar_estilo()
 sidebar_dolly()
 
 encabezado_pagina(
-    modulo="Módulo 05 · Blue Express",
-    titulo="Gestión de puntos Blue Express",
-    subtitulo="Administra los puntos de retiro disponibles y visualiza su cobertura.",
+    modulo="Módulo 06 · Actualizar data",
+    titulo="Actualizar data",
+    subtitulo="Sube un nuevo CSV de VTEX para actualizar la segmentación y todos los archivos.",
 )
 
-# Cargar datos
-df_puntos  = cargar_puntos_blueexpress()
-df_clientes = cargar_perfil_clientes()
-
-# Mensajes pendientes de un guardado que hizo st.rerun() justo después —
-# se guardan en session_state para que no desaparezcan antes de que se lean.
-if "mensaje_guardado" in st.session_state:
-    tipo, texto = st.session_state.pop("mensaje_guardado")
-    (st.success if tipo == "ok" else st.warning)(texto)
-if "mensaje_sync" in st.session_state:
-    ok_sync, detalle_sync = st.session_state.pop("mensaje_sync")
-    (st.success if ok_sync else st.warning)(detalle_sync)
-
 # ==============================================
-# MÉTRICAS GENERALES
+# ESTADO ACTUAL
 # ==============================================
-col1, col2, col3 = st.columns(3)
-with col1:
-    kpi_card("Total puntos", len(df_puntos))
-with col2:
-    kpi_card("Ciudades cubiertas", df_puntos["ciudad"].nunique(), color=GRIS)
-with col3:
-    kpi_card("Regiones cubiertas", df_puntos["region"].nunique(), color=ROJO)
+st.subheader("Estado actual de los archivos")
+
+archivos = {
+    "clientes_con_perfil.csv":     "Segmentación de clientes",
+    "dolly_powerbi.csv":           "Datos para Power BI",
+    "dolly_buyer_enrichment.csv":  "Enriquecimiento de clientes",
+    "blue_express_puntos.csv":     "Puntos Blue Express",
+    "plantillas_campanas.json":    "Plantillas de campañas",
+    "Dolly_Carritos_VTEX.csv":     "CSV fuente VTEX",
+}
+
+filas_estado = []
+for archivo, descripcion in archivos.items():
+    ruta     = os.path.join(RUTA_BASE, archivo)
+    existe   = os.path.exists(ruta)
+    fecha    = pd.Timestamp(os.path.getmtime(ruta), unit="s").strftime("%Y-%m-%d %H:%M") if existe else "—"
+    tamaño   = f"{os.path.getsize(ruta) / 1024:.0f} KB" if existe else "—"
+    filas_estado.append({
+        "Archivo":     archivo,
+        "Descripción": descripcion,
+        "Estado":      "✅ Disponible" if existe else "❌ No encontrado",
+        "Última mod.": fecha,
+        "Tamaño":      tamaño,
+    })
+
+st.dataframe(pd.DataFrame(filas_estado), use_container_width=True, hide_index=True)
 
 divisor()
 
 # ==============================================
-# MAPA DE PUNTOS
+# UPLOAD CSV
 # ==============================================
-st.subheader("🗺️ Mapa de cobertura")
+st.subheader("📂 Cargar nuevo CSV de VTEX")
+st.info("""
+**Requisitos del archivo:**
+- Formato: CSV separado por punto y coma (`;`)
+- Encoding: UTF-8
+- Debe mantener el mismo esquema de columnas que `Dolly_Carritos_VTEX.csv`
+""")
 
-df_puntos_mapa = df_puntos.dropna(subset=["latitud", "longitud"])
-
-
-def _calcular_zoom_y_centro(df_puntos_geo, padding_grados=0.3):
-    """
-    Calcula un centro y zoom razonables a partir del bounding box real de los
-    puntos, en vez de un center/zoom fijo — evita mostrar territorio sin
-    puntos (ej. Argentina) cuando los puntos reales están agrupados en una
-    zona chica del mapa.
-    """
-    if df_puntos_geo.empty:
-        return {"lat": -40.0, "lon": -73.0}, 5
-
-    lat_min, lat_max = df_puntos_geo["latitud"].min(), df_puntos_geo["latitud"].max()
-    lon_min, lon_max = df_puntos_geo["longitud"].min(), df_puntos_geo["longitud"].max()
-
-    centro = {
-        "lat": (lat_min + lat_max) / 2,
-        "lon": (lon_min + lon_max) / 2,
-    }
-
-    rango_max = max(lat_max - lat_min, lon_max - lon_min) + padding_grados
-    # Tabla aproximada rango(°) -> zoom para mapbox/OSM (a mayor rango, menor zoom)
-    if rango_max <= 0.05:
-        zoom = 12
-    elif rango_max <= 0.1:
-        zoom = 11
-    elif rango_max <= 0.3:
-        zoom = 9
-    elif rango_max <= 0.6:
-        zoom = 8
-    elif rango_max <= 1.2:
-        zoom = 7
-    elif rango_max <= 2.5:
-        zoom = 6
-    else:
-        zoom = 5
-
-    return centro, zoom
-
-
-centro_mapa, zoom_mapa = _calcular_zoom_y_centro(df_puntos_mapa)
-
-fig_mapa = px.scatter_mapbox(
-    df_puntos_mapa,
-    lat="latitud",
-    lon="longitud",
-    hover_name="nombre",
-    hover_data=["ciudad", "region", "estado"],
-    color="region",
-    color_discrete_sequence=SECUENCIA_CATEGORICA,
-    zoom=zoom_mapa,
-    center=centro_mapa,
-    height=450,
-    title="Puntos Blue Express — Sur de Chile",
-)
-fig_mapa.update_layout(mapbox_style="open-street-map")
-fig_mapa.update_traces(marker=dict(size=13))
-fig_mapa.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 0})
-st.plotly_chart(estilizar_grafico(fig_mapa), use_container_width=True, theme=None)
-
-divisor()
-
-# ==============================================
-# TABLA EDITABLE
-# ==============================================
-st.subheader("✏️ Editar puntos de retiro")
-st.caption("Puedes agregar, editar o eliminar puntos directamente en la tabla.")
-
-df_editable = st.data_editor(
-    df_puntos,
-    use_container_width=True,
-    num_rows="dynamic",
-    column_config={
-        "nombre":   st.column_config.TextColumn("Nombre del punto", width="large"),
-        "ciudad":   st.column_config.TextColumn("Ciudad"),
-        "region":   st.column_config.TextColumn("Región"),
-        "latitud":  st.column_config.NumberColumn("Latitud",  format="%.4f"),
-        "longitud": st.column_config.NumberColumn("Longitud", format="%.4f"),
-        "estado":   st.column_config.SelectboxColumn(
-            "Estado",
-            options=["Abierto 24/7", "Abierto", "Cerrado temporalmente"]
-        ),
-    },
-    hide_index=True,
+archivo_subido = st.file_uploader(
+    "Arrastra o selecciona el archivo CSV",
+    type=["csv"],
+    help="El archivo debe tener el mismo formato que Dolly_Carritos_VTEX.csv"
 )
 
-col_btn1, col_btn2 = st.columns([1, 4])
-with col_btn1:
-    if st.button("💾 Guardar cambios", type="primary", use_container_width=True):
-        ok_sync, detalle_sync = guardar_puntos_blueexpress(df_editable)
-        st.session_state["mensaje_guardado"] = ("ok", "✅ Puntos guardados correctamente.")
-        st.session_state["mensaje_sync"] = (ok_sync, detalle_sync)
-        st.rerun()
+if archivo_subido:
+    st.success(f"✅ Archivo recibido: **{archivo_subido.name}** ({archivo_subido.size / 1024:.0f} KB)")
 
-divisor()
+    # Vista previa
+    try:
+        df_preview = pd.read_csv(archivo_subido, sep=";", encoding="utf-8-sig", nrows=5, low_memory=False)
+        st.subheader("Vista previa (primeras 5 filas)")
+        st.dataframe(df_preview, use_container_width=True, hide_index=True)
 
-# ==============================================
-# AGREGAR PUNTO NUEVO
-# ==============================================
-st.subheader("➕ Agregar punto nuevo")
+        # Verificar columnas mínimas requeridas
+        COLUMNAS_REQUERIDAS = [
+            "userId", "rclastcartvalue", "rclastsessiondate",
+            "checkouttag", "homePhone", "isNewsletterOptIn",
+        ]
+        columnas_faltantes = [c for c in COLUMNAS_REQUERIDAS if c not in df_preview.columns]
 
-with st.form("form_nuevo_punto"):
-    col_a, col_b = st.columns(2)
-    with col_a:
-        nuevo_nombre  = st.text_input("Nombre del punto", placeholder="Blue Express Copec ...")
-        nueva_ciudad  = st.text_input("Ciudad", placeholder="Puerto Montt")
-        nueva_region  = st.selectbox("Región", [
-            "Los Lagos", "Los Ríos", "La Araucanía", "Biobío",
-            "Ñuble", "Maule", "O'Higgins", "Metropolitana", "Otra"
-        ])
-    with col_b:
-        nueva_lat     = st.number_input("Latitud",  value=-41.4693, format="%.4f")
-        nueva_lon     = st.number_input("Longitud", value=-72.9424, format="%.4f")
-        nuevo_estado  = st.selectbox("Estado", ["Abierto 24/7", "Abierto", "Cerrado temporalmente"])
-
-    submitted = st.form_submit_button("➕ Agregar punto", type="primary")
-    if submitted:
-        if nuevo_nombre and nueva_ciudad:
-            nuevo = pd.DataFrame([{
-                "nombre":   nuevo_nombre,
-                "ciudad":   nueva_ciudad,
-                "region":   nueva_region,
-                "latitud":  nueva_lat,
-                "longitud": nueva_lon,
-                "estado":   nuevo_estado,
-            }])
-            df_actualizado = pd.concat([df_puntos, nuevo], ignore_index=True)
-            ok_sync, detalle_sync = guardar_puntos_blueexpress(df_actualizado)
-            st.session_state["mensaje_guardado"] = ("ok", f"✅ Punto '{nuevo_nombre}' agregado correctamente.")
-            st.session_state["mensaje_sync"] = (ok_sync, detalle_sync)
-            st.rerun()
+        if columnas_faltantes:
+            st.error(f"❌ Faltan columnas requeridas: {columnas_faltantes}")
+            st.stop()
         else:
-            st.error("❌ Nombre y ciudad son obligatorios.")
+            st.success("✅ Estructura del archivo validada correctamente.")
+
+        divisor()
+
+        # Botón para procesar
+        if st.button("🚀 Procesar y actualizar todo", type="primary", use_container_width=True):
+            with st.spinner("Procesando datos..."):
+                from github_sync import subir_archivo_a_github, github_configurado
+
+                sync_disponible = github_configurado()
+                if not sync_disponible:
+                    st.warning(
+                        "⚠️ GitHub no está configurado en Secrets (GITHUB_TOKEN / GITHUB_REPO) — "
+                        "los archivos se guardarán solo localmente y se perderán si la app se reinicia."
+                    )
+
+                # 1. Guardar CSV nuevo
+                archivo_subido.seek(0)
+                df_raw = pd.read_csv(archivo_subido, sep=";", encoding="utf-8-sig", low_memory=False)
+                ruta_csv = os.path.join(RUTA_BASE, "Dolly_Carritos_VTEX.csv")
+                df_raw.to_csv(ruta_csv, sep=";", index=False, encoding="utf-8-sig")
+                st.write("✅ CSV guardado")
+                if sync_disponible:
+                    ok, detalle = subir_archivo_a_github(ruta_csv, "Dolly_Carritos_VTEX.csv")
+                    st.write(f"{'✅' if ok else '⚠️'} {detalle}")
+
+                # 2. Segmentar clientes
+                df_raw_procesado = cargar_csv_vtex(ruta_csv)
+                df_segmentado    = segmentar_clientes(df_raw_procesado)
+                st.write(f"✅ Segmentación completada: {len(df_segmentado):,} clientes")
+
+                # 3. Exportar clientes_con_perfil.csv
+                COLUMNAS_PERFIL = [
+                    "userId", "segmento", "recencia_dias",
+                    "monto_carrito", "ticket_prom", "ticket_max",
+                    "frecuencia", "paso_abandono", "brecha_flete",
+                    "sobre_umbral", "tiene_telefono", "tiene_newsletter",
+                    "email", "tiene_email",
+                    "es_comprador", "tiene_carrito_abandonado_historico",
+                    "producto_id", "categoria_producto", "marca_producto", "departamento_producto",
+                    "ultima_sesion", "primera_sesion",
+                ]
+                cols_existentes = [c for c in COLUMNAS_PERFIL if c in df_segmentado.columns]
+                ruta_perfil = os.path.join(RUTA_BASE, "clientes_con_perfil.csv")
+                df_segmentado[cols_existentes].to_csv(ruta_perfil, index=False, encoding="utf-8-sig")
+                st.write("✅ clientes_con_perfil.csv actualizado")
+                if sync_disponible:
+                    ok, detalle = subir_archivo_a_github(ruta_perfil, "clientes_con_perfil.csv")
+                    st.write(f"{'✅' if ok else '⚠️'} {detalle}")
+
+                # 4. Exportar dolly_powerbi.csv
+                COLUMNAS_POWERBI = [
+                    "userId", "segmento", "paso_abandono",
+                    "recencia_dias", "monto_carrito", "ticket_prom",
+                    "frecuencia", "sobre_umbral", "brecha_flete",
+                    "tiene_telefono", "tiene_newsletter", "tiene_email",
+                    "es_comprador", "tiene_carrito_abandonado_historico",
+                    "producto_id", "categoria_producto", "marca_producto", "departamento_producto",
+                ]
+                cols_pbi = [c for c in COLUMNAS_POWERBI if c in df_segmentado.columns]
+                df_pbi   = df_segmentado[cols_pbi].copy()
+
+                for col in ["ultima_sesion", "primera_sesion"]:
+                    if col in df_pbi.columns:
+                        df_pbi[col] = pd.to_datetime(df_pbi[col], errors="coerce").dt.tz_localize(None)
+
+                for col in ["sobre_umbral", "tiene_telefono", "tiene_newsletter", "tiene_email",
+                            "es_comprador", "tiene_carrito_abandonado_historico"]:
+                    if col in df_pbi.columns:
+                        df_pbi[col] = df_pbi[col].astype(int)
+
+                ruta_pbi = os.path.join(RUTA_BASE, "dolly_powerbi.csv")
+                df_pbi.to_csv(ruta_pbi, index=False, encoding="utf-8-sig")
+                st.write("✅ dolly_powerbi.csv actualizado")
+                if sync_disponible:
+                    ok, detalle = subir_archivo_a_github(ruta_pbi, "dolly_powerbi.csv")
+                    st.write(f"{'✅' if ok else '⚠️'} {detalle}")
+
+            divisor()
+            st.success("🎉 ¡Todo actualizado correctamente!")
+
+            # Resumen
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                kpi_card("Total clientes procesados", f"{len(df_segmentado):,}")
+            with col2:
+                kpi_card("Segmentos generados", df_segmentado["segmento"].nunique(), color=GRIS)
+            with col3:
+                kpi_card("Monto mediano", f"${df_segmentado['monto_carrito'].median():,.0f}", color=ROJO)
+
+            st.subheader("Distribución de segmentos generada")
+            conteo = df_segmentado["segmento"].value_counts().reset_index()
+            conteo.columns = ["Segmento", "Clientes"]
+            conteo["% Base"] = (conteo["Clientes"] / len(df_segmentado) * 100).round(1)
+            st.dataframe(conteo, use_container_width=True, hide_index=True)
+
+    except Exception as e:
+        st.error(f"❌ Error procesando el archivo: {e}")
 
 divisor()
 
 # ==============================================
-# ANÁLISIS DE COBERTURA
+# DESCARGA DE ARCHIVOS GENERADOS
 # ==============================================
-st.subheader("📊 Análisis de cobertura por ciudad")
+st.subheader("⬇️ Descargar archivos generados")
+st.caption("Descarga los CSV generados por el pipeline para uso externo.")
 
-cobertura = df_puntos.groupby(["ciudad", "region"]).agg(
-    n_puntos = ("nombre", "count")
-).reset_index().sort_values("n_puntos", ascending=False)
+col1, col2, col3 = st.columns(3)
 
-fig_cob = px.bar(
-    cobertura,
-    x="ciudad",
-    y="n_puntos",
-    color="region",
-    color_discrete_sequence=SECUENCIA_CATEGORICA,
-    title="Puntos Blue Express por ciudad",
-    labels={"n_puntos": "N° puntos", "ciudad": "Ciudad"},
+archivos_descarga = [
+    ("clientes_con_perfil.csv",    "👥 Clientes segmentados",  col1),
+    ("dolly_powerbi.csv",          "📊 Datos Power BI",         col2),
+    ("dolly_buyer_enrichment.csv", "🧩 Buyer Enrichment",       col3),
+]
+
+for archivo, label, col in archivos_descarga:
+    ruta = os.path.join(RUTA_BASE, archivo)
+    with col:
+        if os.path.exists(ruta):
+            with open(ruta, "rb") as f:
+                st.download_button(
+                    label=label,
+                    data=f,
+                    file_name=archivo,
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+        else:
+            st.button(label, disabled=True, use_container_width=True,
+                      help="Archivo no disponible aún")
+
+divisor()
+
+# ==============================================
+# ESTADO DE INTEGRACIONES
+# ==============================================
+st.subheader("🔌 Estado de integraciones")
+st.caption(
+    "Las credenciales se configuran en Streamlit Cloud → tu app → Settings (⋮) → "
+    "Secrets, nunca en el código. Al pegarlas ahí, esta página debería mostrarlas "
+    "como configuradas sin necesidad de tocar nada más."
 )
-fig_cob.update_layout(xaxis_tickangle=-30)
-st.plotly_chart(estilizar_grafico(fig_cob), use_container_width=True, theme=None)
+
+from secretos_Dolly import resumen_configuracion
+from integraciones_Dolly import (
+    vtex_configurado, probar_conexion_vtex,
+    mailup_configurado, probar_conexion_mailup,
+)
+from github_sync import github_configurado
+
+col_vtex, col_mailup, col_github = st.columns(3)
+
+with col_vtex:
+    st.markdown("**VTEX**")
+    if vtex_configurado():
+        st.success("✅ Credenciales configuradas")
+        if st.button("Probar conexión VTEX", use_container_width=True):
+            ok, detalle = probar_conexion_vtex()
+            (st.success if ok else st.error)(detalle)
+    else:
+        st.warning("⏳ Pendiente — faltan VTEX_ACCOUNT_NAME / VTEX_API_KEY / VTEX_API_TOKEN")
+
+with col_mailup:
+    st.markdown("**MailUp**")
+    if mailup_configurado():
+        st.success("✅ Credenciales configuradas")
+        if st.button("Probar conexión MailUp", use_container_width=True):
+            ok, detalle = probar_conexion_mailup()
+            (st.success if ok else st.error)(detalle)
+    else:
+        st.warning("⏳ Pendiente — faltan MAILUP_CLIENT_ID / MAILUP_CLIENT_SECRET / usuario / password")
+
+with col_github:
+    st.markdown("**GitHub (persistencia)**")
+    if github_configurado():
+        st.success("✅ Configurado — los datos se respaldan solos")
+    else:
+        st.warning("⏳ Pendiente — faltan GITHUB_TOKEN / GITHUB_REPO")
+
+with st.expander("Ver detalle de todas las claves de Secrets"):
+    for etiqueta, configurada in resumen_configuracion().items():
+        st.markdown(f"{'✅' if configurada else '⬜'} {etiqueta}")
