@@ -82,13 +82,33 @@ def _o_sin_dato(valor):
     return valor if pd.notna(valor) and str(valor).strip() not in ("", "nan", "None") else "Sin dato"
 
 
+def _formatear_telefono_cl(numero):
+    """
+    Formatea a '+56 9 0000 0000'. Acepta el número venga como venga en VTEX
+    (con o sin +, con o sin 56, con espacios/guiones) — se queda solo con los
+    dígitos y arma el formato chileno estándar de celular (9 dígitos después
+    del 56). Si no calza con ese patrón (fijo, extranjero, dato corrupto),
+    devuelve el número tal cual llegó en vez de forzar un formato incorrecto.
+    """
+    solo_digitos = "".join(ch for ch in str(numero) if ch.isdigit())
+
+    if solo_digitos.startswith("56") and len(solo_digitos) == 11:
+        cod_pais, resto = solo_digitos[:2], solo_digitos[2:]
+    elif len(solo_digitos) == 9 and solo_digitos.startswith("9"):
+        cod_pais, resto = "56", solo_digitos
+    else:
+        return str(numero)  # formato no reconocido — se muestra tal cual
+
+    return f"+{cod_pais} {resto[0]} {resto[1:5]} {resto[5:9]}"
+
+
 def _telefono_visible(c):
-    """Muestra el número real si existe; si solo tenemos el booleano
-    tiene_telefono=True pero no el número (datos antiguos sin re-procesar),
-    cae de vuelta al ícono genérico en vez de mostrar 'None'."""
+    """Muestra el número real (formateado) si existe; si solo tenemos el
+    booleano tiene_telefono=True pero no el número (datos antiguos sin
+    re-procesar), cae de vuelta al ícono genérico en vez de mostrar 'None'."""
     numero = c.get("homePhone")
     if pd.notna(numero) and str(numero).strip() not in ("", "nan", "None"):
-        return f"📞 {numero}"
+        return f"📞 {_formatear_telefono_cl(numero)}"
     return "📞 Teléfono" if c.get("tiene_telefono") else "—"
 
 
