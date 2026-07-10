@@ -4,9 +4,7 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
 import sys
 import os
 
@@ -18,7 +16,7 @@ from pipeline_Dolly import (
 )
 from estilo_Dolly import (
     aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
-    NEGRO, ROJO, VINO, GRIS, GRIS_CLARO, CARD, BORDE, TEXTO_SECUNDARIO, ESCALA_NEUTRA, ESCALA_ROJA,
+    NEGRO, ROJO, VINO, GRIS, CARD, BORDE, TEXTO_SECUNDARIO,
 )
 
 st.set_page_config(page_title="Dashboard — Dolly", page_icon="📊", layout="wide")
@@ -266,210 +264,13 @@ st.download_button(
 
 divisor()
 
-# ==============================================
-# PANORAMA GENERAL — TODOS LOS SEGMENTOS
-# ==============================================
-st.subheader("Panorama general de la base")
-st.caption(
-    "Torta con todos los segmentos. El gráfico de barras excluye "
-    "Perdido, Inactivo y los 4 Recuperable (ya tienen su propio gráfico arriba) "
-    "para que el resto de los segmentos —donde también hay decisiones que tomar— "
-    "no quede invisible al lado de esos volúmenes tan grandes."
-)
-
-segmentos_disponibles_panorama = sorted(df["segmento"].unique().tolist())
-segmentos_filtro_panorama = st.multiselect(
-    "Filtrar esta sección por segmento",
-    options=segmentos_disponibles_panorama,
-    default=segmentos_disponibles_panorama,
-    help="Afecta solo los 4 gráficos de Panorama general (torta, barras y las "
-         "dos distribuciones de abajo) — no al resto del Dashboard.",
-)
-
-if not segmentos_filtro_panorama:
-    st.warning("Selecciona al menos un segmento para ver el panorama.")
-else:
-    df_panorama = df[df["segmento"].isin(segmentos_filtro_panorama)]
-    stats_panorama = calcular_estadisticas(df_panorama)
-
-    # ==============================================
-    # GRÁFICOS — TORTA Y BARRA
-    # ==============================================
-    col_izq, col_der = st.columns(2, gap="large")
-
-    with col_izq:
-        df_pot = pd.DataFrame({
-            "Segmento":   list(stats_panorama["potencial_por_segmento"].keys()),
-            "Potencial":  list(stats_panorama["potencial_por_segmento"].values()),
-        }).sort_values("Potencial", ascending=False)
-
-        colores_pot = px.colors.sample_colorscale(
-            ["#F3D6D3", ROJO, VINO],
-            [i / max(len(df_pot) - 1, 1) for i in range(len(df_pot))],
-        )
-
-        fig2 = px.pie(
-            df_pot,
-            names="Segmento",
-            values="Potencial",
-            title="Potencial CLP por segmento (% del total)",
-            color_discrete_sequence=colores_pot,
-        )
-        fig2.update_traces(textposition="inside", textinfo="percent+label", showlegend=False)
-        st.plotly_chart(estilizar_grafico(fig2), use_container_width=True, theme=None)
-
-    with col_der:
-        SEGMENTOS_EXCLUIDOS_PANORAMA = SEGMENTOS_RECUPERABLES + ["Perdido", "Inactivo"]
-
-        df_seg = pd.DataFrame({
-            "Segmento": list(stats_panorama["clientes_por_segmento"].keys()),
-            "Clientes": list(stats_panorama["clientes_por_segmento"].values()),
-        })
-        df_seg = df_seg[~df_seg["Segmento"].isin(SEGMENTOS_EXCLUIDOS_PANORAMA)]
-        df_seg = df_seg.sort_values("Clientes", ascending=True)
-
-        # Color por accionabilidad (mismo orden de urgencia que el resto del
-        # Dashboard) en vez de por volumen — así el segmento más urgente destaca
-        # aunque tenga pocos clientes, y no al revés.
-        n_segmentos_totales = max(len(ORDEN_PRIORIDAD_SEGMENTOS), 1)
-        mapa_color_prioridad = {
-            seg: px.colors.sample_colorscale(
-                [GRIS_CLARO, VINO, ROJO],
-                [1 - (rank - 1) / max(n_segmentos_totales - 1, 1)],
-            )[0]
-            for seg, rank in ORDEN_PRIORIDAD_SEGMENTOS.items()
-        }
-
-        if df_seg.empty:
-            st.info("Los segmentos elegidos quedan todos excluidos de este gráfico (Perdido/Inactivo/Recuperables).")
-        else:
-            fig = px.bar(
-                df_seg,
-                x="Clientes",
-                y="Segmento",
-                orientation="h",
-                color="Segmento",
-                color_discrete_map=mapa_color_prioridad,
-                title="Clientes por segmento (excluye Perdido/Inactivo/Recuperables)",
-            )
-            fig.update_layout(showlegend=False, yaxis_title=None)
-            fig.update_yaxes(automargin=True)
-            st.plotly_chart(estilizar_grafico(fig), use_container_width=True, theme=None)
-
-    divisor()
-
-    # ==============================================
-    # DISTRIBUCIÓN DE RECENCIA
-    # ==============================================
-    st.subheader("Distribución de recencia")
-
-    # Binning manual (en vez de px.histogram directo) para poder colorear cada
-    # barra según su propio valor. Gradiente invertido a propósito: el bin más
-    # reciente (menos días) recibe el color más denso/vivo, y se va difuminando
-    # a medida que aumenta la recencia — la intensidad del color representa
-    # "qué tan vivo" está ese grupo de clientes.
-    conteos, bordes = np.histogram(df_panorama["recencia_dias"], bins=30)
-    centros = (bordes[:-1] + bordes[1:]) / 2
-    df_bins_recencia = pd.DataFrame({
-        "centro": centros,
-        "clientes": conteos,
-        "rango": [f"{int(bordes[i])}–{int(bordes[i+1])} días" for i in range(len(bordes) - 1)],
-    })
-
-    ESCALA_ROJA_INVERTIDA = [[0, VINO], [0.5, ROJO], [1, "#F3D6D3"]]
-
-    fig3 = px.bar(
-        df_bins_recencia,
-        x="centro",
-        y="clientes",
-        color="centro",
-        color_continuous_scale=ESCALA_ROJA_INVERTIDA,
-        title="Tendencia de sesiones",
-        labels={"centro": "Días", "clientes": "Clientes"},
-        custom_data=["rango"],
-    )
-    fig3.update_traces(
-        marker_line_color="#FFFFFF",
-        marker_line_width=1.5,
-        hovertemplate="%{customdata[0]}<br>%{y:,} clientes<extra></extra>",
-        name="Clientes",
-    )
-
-    # Línea de tendencia — promedio móvil de 3 bins para suavizar el "diente de
-    # sierra" propio del binning, sin ocultar las barras reales debajo.
-    tendencia = pd.Series(conteos).rolling(window=3, center=True, min_periods=1).mean()
-    fig3.add_trace(go.Scatter(
-        x=centros, y=tendencia,
-        mode="lines",
-        line=dict(color=NEGRO, width=2.5, shape="spline"),
-        name="Tendencia",
-        hoverinfo="skip",
-    ))
-
-    fig3.update_layout(bargap=0.12, coloraxis_showscale=False, showlegend=True, legend_title_text="")
-    st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
-    st.caption("Cuántos clientes tuvieron su última sesión hace X días — la línea suaviza el conteo bin a bin para ver la tendencia real detrás del vaivén.")
-
-    divisor()
-
-    # ==============================================
-    # DISTRIBUCIÓN DE MONTO DE CARRITO
-    # ==============================================
-    st.subheader("Distribución de monto de carrito")
-    df_monto = df_panorama[df_panorama["monto_carrito"] > 0]
-
-    if df_monto.empty:
-        st.info("No hay carritos con monto mayor a 0 en los segmentos seleccionados.")
-    else:
-        umbral = PARAMS["ticket_umbral_flete_gratis"]
-
-        # Acotamos el eje a una zona donde realmente vive la decisión de negocio
-        # (cerca del umbral de flete gratis) — el histograma completo hasta el
-        # máximo real queda dominado por unos pocos carritos gigantes y aplasta
-        # todo lo demás contra el eje Y. Los outliers no se ocultan: se cuentan
-        # aparte en el caption de abajo.
-        eje_max = max(umbral * 3, df_monto["monto_carrito"].quantile(0.95))
-        df_monto_visible = df_monto[df_monto["monto_carrito"] <= eje_max]
-        n_outliers = len(df_monto) - len(df_monto_visible)
-
-        fig4 = px.histogram(
-            df_monto_visible,
-            x="monto_carrito",
-            nbins=30,
-            color_discrete_sequence=[VINO],
-            title="Valor del carrito (CLP)",
-            labels={"monto_carrito": "CLP"},
-        )
-        # Bandas de color: convierte la línea de umbral en una zona accionable —
-        # "bajo el umbral" (candidatos a empujar con un cross-sell/recordatorio)
-        # vs. "ya calificó para flete gratis", en vez de solo una referencia
-        # descriptiva.
-        fig4.add_vrect(
-            x0=0, x1=umbral,
-            fillcolor=ROJO, opacity=0.10, line_width=0,
-            annotation_text="Bajo el umbral", annotation_position="top left",
-            annotation_font_color=ROJO,
-        )
-        fig4.add_vrect(
-            x0=umbral, x1=eje_max,
-            fillcolor=GRIS_CLARO, opacity=0.25, line_width=0,
-            annotation_text="Flete gratis ✓", annotation_position="top right",
-            annotation_font_color=TEXTO_SECUNDARIO,
-        )
-        fig4.add_vline(
-            x=umbral,
-            line_dash="dash",
-            line_color=ROJO,
-            annotation_text=f"${umbral:,}",
-        )
-        fig4.update_xaxes(range=[0, eje_max])
-        fig4.update_traces(marker_line_color="#FFFFFF", marker_line_width=1.5)
-        fig4.update_layout(bargap=0.12)
-        st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
-        if n_outliers > 0:
-            st.caption(f"+{n_outliers:,} clientes con carrito sobre ${eje_max:,.0f} (fuera del rango visible, para no aplastar la escala).")
-
-divisor()
+# NOTA: la sección "Panorama general de la base" (torta, barra y las dos
+# distribuciones) se trasladó a 02_segmentacion.py — el Dashboard se enfoca
+# en "a quién atacar con urgencia hoy" (KPIs, cliente prioritario, oportunidades
+# de recuperación, clientes prioritarios), y Segmentación pasa a ser el único
+# lugar para explorar/entender la base completa. Pendiente: definir qué
+# reemplaza este espacio (top urgencias / racha sin campaña / matriz de
+# priorización — a decidir).
 
 # ==============================================
 # TABLA RESUMEN
