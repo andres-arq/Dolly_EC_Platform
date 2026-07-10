@@ -11,12 +11,13 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import cargar_perfil_clientes, cargar_buyer_enrichment, PARAMS
 from estilo_Dolly import (
-    aplicar_estilo, encabezado_pagina, kpi_card, divisor,
+    aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor,
     NEGRO, ROJO, VINO, GRIS,
 )
 
 st.set_page_config(page_title="Perfil Cliente — Dolly", page_icon="👤", layout="wide")
 aplicar_estilo()
+sidebar_dolly()
 
 encabezado_pagina(
     modulo="Módulo 03 · Perfil de cliente",
