@@ -82,6 +82,16 @@ def _o_sin_dato(valor):
     return valor if pd.notna(valor) and str(valor).strip() not in ("", "nan", "None") else "Sin dato"
 
 
+def _telefono_visible(c):
+    """Muestra el número real si existe; si solo tenemos el booleano
+    tiene_telefono=True pero no el número (datos antiguos sin re-procesar),
+    cae de vuelta al ícono genérico en vez de mostrar 'None'."""
+    numero = c.get("homePhone")
+    if pd.notna(numero) and str(numero).strip() not in ("", "nan", "None"):
+        return f"📞 {numero}"
+    return "📞 Teléfono" if c.get("tiene_telefono") else "—"
+
+
 def _tarjeta_cliente(titulo, icono, color, c):
     producto_txt  = _o_sin_dato(c.get("marca_producto"))
     categoria_txt = _o_sin_dato(c.get("categoria_producto"))
@@ -106,7 +116,7 @@ def _tarjeta_cliente(titulo, icono, color, c):
                 ${c.get('monto_carrito', 0):,.0f}
             </div>
             <div style="font-size:12px; color:{TEXTO_SECUNDARIO};">
-                {'📞 Teléfono' if c.get('tiene_telefono') else '—'} ·
+                {_telefono_visible(c)} ·
                 {'📧 Newsletter' if c.get('tiene_newsletter') else '—'}
             </div>
         </div>
