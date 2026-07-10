@@ -63,51 +63,65 @@ resumen_rec = resumen_recuperables(df)
 total_recuperables = int(resumen_rec["clientes"].sum()) if not resumen_rec.empty else 0
 
 # ==============================================
-# CLIENTE MÁS PRIORITARIO AHORA
+# CLIENTES PRIORITARIOS AHORA — MÁS RECIENTE Y MÁS VALIOSO
 # ==============================================
-top_cliente_df = clientes_prioritarios(df, n=1)
+# Ambos salen del mismo pool que compone el KPI "Clientes recuperables ahora"
+# (los 4 segmentos Recuperable, sin contar a quienes ya compraron) — así el
+# número de la tarjeta siempre corresponde a alguien contado en esos 324.
+pool_recuperables = df[df["segmento"].isin(SEGMENTOS_RECUPERABLES)].copy()
+if "es_comprador" in pool_recuperables.columns:
+    pool_recuperables = pool_recuperables[pool_recuperables["es_comprador"] != True]  # noqa: E712
 
-if not top_cliente_df.empty:
-    c = top_cliente_df.iloc[0]
+pool_recuperables["_prioridad"] = pool_recuperables["segmento"].map(ORDEN_PRIORIDAD_SEGMENTOS).fillna(99)
 
-    def _o_sin_dato(valor):
-        return valor if pd.notna(valor) and str(valor).strip() not in ("", "nan", "None") else "Sin dato"
+cliente_reciente_df = pool_recuperables.sort_values(["_prioridad", "recencia_dias"], ascending=[True, True])
+cliente_valioso_df  = pool_recuperables.sort_values("monto_carrito", ascending=False)
 
-    producto_txt = _o_sin_dato(c.get("marca_producto"))
+
+def _o_sin_dato(valor):
+    return valor if pd.notna(valor) and str(valor).strip() not in ("", "nan", "None") else "Sin dato"
+
+
+def _tarjeta_cliente(titulo, icono, color, c):
+    producto_txt  = _o_sin_dato(c.get("marca_producto"))
     categoria_txt = _o_sin_dato(c.get("categoria_producto"))
-    sku_txt = _o_sin_dato(c.get("producto_id"))
+    sku_txt       = _o_sin_dato(c.get("producto_id"))
 
     st.markdown(f"""
-        <div style="background:{CARD}; border:0.5px solid {BORDE}; border-left:5px solid {ROJO};
-                    border-radius:0 12px 12px 0; padding:20px 24px; margin-bottom:8px;">
-            <div style="font-size:11px; letter-spacing:0.08em; color:{ROJO}; font-weight:600;
+        <div style="background:{CARD}; border:0.5px solid {BORDE}; border-left:5px solid {color};
+                    border-radius:0 12px 12px 0; padding:20px 24px; height:100%;">
+            <div style="font-size:11px; letter-spacing:0.08em; color:{color}; font-weight:600;
                         text-transform:uppercase; margin-bottom:6px;">
-                🔴 Cliente más prioritario ahora
+                {icono} {titulo}
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;">
-                <div>
-                    <div style="font-size:20px; font-weight:700; color:{NEGRO};">{c.get('segmento','—')}</div>
-                    <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">
-                        userId: <code>{c.get('userId','—')}</code> · paso: {c.get('paso_abandono','—')} ·
-                        hace {c.get('recencia_dias','—')} días
-                    </div>
-                    <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:4px;">
-                        Interés: <b style="color:{NEGRO};">{producto_txt} - {categoria_txt} - {sku_txt}</b>
-                    </div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-size:26px; font-weight:700; color:{ROJO};">${c.get('monto_carrito',0):,.0f}</div>
-                    <div style="font-size:12px; color:{TEXTO_SECUNDARIO};">
-                        {'📞 Teléfono' if c.get('tiene_telefono') else '—'} ·
-                        {'📧 Newsletter' if c.get('tiene_newsletter') else '—'}
-                    </div>
-                </div>
+            <div style="font-size:20px; font-weight:700; color:{NEGRO};">{c.get('segmento','—')}</div>
+            <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">
+                userId: <code>{c.get('userId','—')}</code> · paso: {c.get('paso_abandono','—')} ·
+                hace {c.get('recencia_dias','—')} días
+            </div>
+            <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:4px;">
+                Interés: <b style="color:{NEGRO};">{producto_txt} - {categoria_txt} - {sku_txt}</b>
+            </div>
+            <div style="font-size:26px; font-weight:700; color:{color}; margin-top:10px;">
+                ${c.get('monto_carrito', 0):,.0f}
+            </div>
+            <div style="font-size:12px; color:{TEXTO_SECUNDARIO};">
+                {'📞 Teléfono' if c.get('tiene_telefono') else '—'} ·
+                {'📧 Newsletter' if c.get('tiene_newsletter') else '—'}
             </div>
         </div>
     """, unsafe_allow_html=True)
-    st.caption("Ve a **Perfil de Cliente** y busca este userId para contactarlo. Excluye siempre a quienes ya compraron (paso \"Finalizado\").")
+
+
+if not pool_recuperables.empty:
+    col_reciente, col_valioso = st.columns(2, gap="large")
+    with col_reciente:
+        _tarjeta_cliente("Cliente más reciente", "🔴", ROJO, cliente_reciente_df.iloc[0])
+    with col_valioso:
+        _tarjeta_cliente("Cliente más valioso", "💎", VINO, cliente_valioso_df.iloc[0])
+    st.caption("Ve a **Perfil de Cliente** y busca el userId para contactarlo. Excluye siempre a quienes ya compraron (paso \"Finalizado\").")
 else:
-    st.info("No hay clientes pendientes de contacto en este momento — todos están en \"Finalizado\" o sin actividad reciente.")
+    st.info("No hay clientes recuperables pendientes de contacto en este momento.")
 
 divisor()
 
