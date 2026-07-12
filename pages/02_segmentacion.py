@@ -163,6 +163,12 @@ else:
                 )
                 fig_paso.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                 st.plotly_chart(estilizar_grafico(fig_paso), use_container_width=True, theme=None)
+            st.caption(
+                "Creemos que la disponibilidad de los datos de paso de abandono extraíbles "
+                "por CSV de VTEX está limitada únicamente a 30-31 días hacia atrás del día de "
+                "extracción — este es un argumento a favor de implementar la conexión por API "
+                "en lugar de depender de carga manual."
+            )
         else:
             st.info("No hay clientes con paso de abandono conocido en este filtro.")
 
