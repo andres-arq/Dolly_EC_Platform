@@ -101,12 +101,8 @@ divisor()
 # ==============================================
 st.subheader("Panorama general de la base")
 st.caption(
-    "Usa los mismos filtros de arriba (Segmento, Rango de monto, Rango de "
-    "recencia). El gráfico de barras excluye Perdido, Inactivo y los 4 "
-    "Recuperable (ya tienen su propio análisis en 'Oportunidades de "
-    "recuperación' del Dashboard) para que el resto de los segmentos —donde "
-    "también hay decisiones que tomar— no quede invisible al lado de esos "
-    "volúmenes tan grandes."
+    "Usa los filtros de arriba. La barra excluye Perdido/Inactivo/Recuperables "
+    "(ya tienen su análisis en Oportunidades de recuperación)."
 )
 
 if df_filtrado.empty:
@@ -164,10 +160,8 @@ else:
                 fig_paso.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                 st.plotly_chart(estilizar_grafico(fig_paso), use_container_width=True, theme=None)
             st.caption(
-                "Creemos que la disponibilidad de los datos de paso de abandono extraíbles "
-                "por CSV de VTEX está limitada únicamente a 30-31 días hacia atrás del día de "
-                "extracción — este es un argumento a favor de implementar la conexión por API "
-                "en lugar de depender de carga manual."
+                "El paso de abandono vía CSV VTEX solo cubre ~30-31 días hacia atrás — "
+                "argumento a favor de la conexión por API."
             )
         else:
             st.info("No hay clientes con paso de abandono conocido en este filtro.")
@@ -266,7 +260,7 @@ else:
 
     fig3.update_layout(bargap=0.12, coloraxis_showscale=False, showlegend=True, legend_title_text="")
     st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
-    st.caption("Cuántos clientes tuvieron su última sesión hace X días — la línea suaviza el conteo bin a bin para ver la tendencia real detrás del vaivén.")
+    st.caption("Clientes por última sesión, con línea de tendencia suavizada.")
 
     divisor()
 
