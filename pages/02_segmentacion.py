@@ -169,44 +169,71 @@ else:
     divisor()
 
     # ==============================================
-    # GRÁFICO — BARRA CLIENTES POR SEGMENTO (ancho completo)
+    # ==============================================
+    # GRÁFICO — CLIENTES VS. POTENCIAL CLP POR SEGMENTO (ancho completo)
     # ==============================================
     SEGMENTOS_EXCLUIDOS_PANORAMA = SEGMENTOS_RECUPERABLES + ["Perdido", "Inactivo"]
 
     df_seg = pd.DataFrame({
-        "Segmento": list(stats_panorama["clientes_por_segmento"].keys()),
-        "Clientes": list(stats_panorama["clientes_por_segmento"].values()),
+        "Segmento":  list(stats_panorama["clientes_por_segmento"].keys()),
+        "Clientes":  list(stats_panorama["clientes_por_segmento"].values()),
+        "Potencial": [stats_panorama["potencial_por_segmento"].get(s, 0)
+                      for s in stats_panorama["clientes_por_segmento"].keys()],
     })
     df_seg = df_seg[~df_seg["Segmento"].isin(SEGMENTOS_EXCLUIDOS_PANORAMA)]
-    df_seg = df_seg.sort_values("Clientes", ascending=True)
-
-    # Color por accionabilidad (mismo orden de urgencia que el resto de
-    # la app) en vez de por volumen — así el segmento más urgente destaca
-    # aunque tenga pocos clientes, y no al revés.
-    n_segmentos_totales = max(len(ORDEN_PRIORIDAD_SEGMENTOS), 1)
-    mapa_color_prioridad = {
-        seg: px.colors.sample_colorscale(
-            [GRIS_CLARO, VINO, ROJO],
-            [1 - (rank - 1) / max(n_segmentos_totales - 1, 1)],
-        )[0]
-        for seg, rank in ORDEN_PRIORIDAD_SEGMENTOS.items()
-    }
 
     if df_seg.empty:
         st.info("Los segmentos elegidos quedan todos excluidos de este gráfico (Perdido/Inactivo/Recuperables).")
     else:
+        # Orden por urgencia real (mismo criterio que el resto de la app), no por
+        # tamaño — así la lectura de arriba hacia abajo es literalmente "a qué
+        # prestarle atención primero", no solo "quién es más grande".
+        df_seg["_prioridad"] = df_seg["Segmento"].map(ORDEN_PRIORIDAD_SEGMENTOS).fillna(99)
+        orden_seg = df_seg.sort_values("_prioridad", ascending=False)["Segmento"].tolist()
+
+        total_clientes_seg  = df_seg["Clientes"].sum()
+        total_potencial_seg = df_seg["Potencial"].sum()
+        df_seg["pct_clientes"]  = df_seg["Clientes"]  / total_clientes_seg  * 100
+        df_seg["pct_potencial"] = df_seg["Potencial"] / total_potencial_seg * 100
+
+        df_combo_seg = pd.concat([
+            pd.DataFrame({
+                "Segmento": df_seg["Segmento"], "tipo": "Clientes",
+                "pct": df_seg["pct_clientes"],
+                "texto": df_seg["Clientes"].map(lambda v: f"{v:,}"),
+            }),
+            pd.DataFrame({
+                "Segmento": df_seg["Segmento"], "tipo": "Potencial CLP",
+                "pct": df_seg["pct_potencial"],
+                "texto": df_seg["Potencial"].map(lambda v: f"${v:,.0f}"),
+            }),
+        ], ignore_index=True)
+
         fig_barra_pan = px.bar(
-            df_seg,
-            x="Clientes",
-            y="Segmento",
-            orientation="h",
-            color="Segmento",
-            color_discrete_map=mapa_color_prioridad,
-            title="Clientes por segmento (excluye Perdido/Inactivo/Recuperables)",
+            df_combo_seg,
+            x="pct", y="Segmento", color="tipo", orientation="h", barmode="group",
+            text="texto",
+            color_discrete_map={"Clientes": ROJO, "Potencial CLP": VINO},
+            category_orders={"Segmento": orden_seg},
+            title="Clientes vs. potencial CLP por segmento (excluye Perdido/Inactivo/Recuperables)",
         )
-        fig_barra_pan.update_layout(showlegend=False, yaxis_title=None)
+        fig_barra_pan.update_traces(textposition="outside")
+        fig_barra_pan.update_layout(
+            yaxis_title=None, xaxis_title="% del total de este grupo de segmentos",
+            legend_title_text="", legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        )
+        fig_barra_pan.update_xaxes(ticksuffix="%")
         fig_barra_pan.update_yaxes(automargin=True)
         st.plotly_chart(estilizar_grafico(fig_barra_pan), use_container_width=True, theme=None)
+
+        # Insight automático — la lectura ejecutiva de un vistazo, sin tener que
+        # interpretar el gráfico para llegar a la conclusión.
+        seg_top_potencial = df_seg.loc[df_seg["Potencial"].idxmax()]
+        st.caption(
+            f"Mayor potencial fuera de las prioridades ya cubiertas arriba: "
+            f"**{seg_top_potencial['Segmento']}** (${seg_top_potencial['Potencial']:,.0f}, "
+            f"{seg_top_potencial['Clientes']:,.0f} clientes)."
+        )
 
     divisor()
 
