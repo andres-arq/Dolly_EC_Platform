@@ -296,10 +296,12 @@ st.caption("Haz clic en cada segmento para ver el detalle y la recomendación.")
 
 
 def _caja_intro_ruta(html_contenido):
-    """Caja que diferencia visualmente el párrafo introductorio de cada ruta."""
+    """Caja que diferencia visualmente el párrafo introductorio de cada ruta.
+    Altura fija (no min-height) para que las 3 columnas queden con exactamente
+    el mismo tamaño, sin importar cuánto texto tenga cada una."""
     st.markdown(
         f"""<div style="background:{CARD}; border:0.5px solid {BORDE}; border-radius:10px;
-                    padding:14px 16px; margin-bottom:16px; min-height:92px;">
+                    padding:14px 16px; margin-bottom:16px; height:110px; overflow:hidden;">
             {html_contenido}
         </div>""",
         unsafe_allow_html=True,
@@ -307,11 +309,10 @@ def _caja_intro_ruta(html_contenido):
 
 
 def _paso_flujo(nombre_segmento):
-    """Cada segmento como un botón-rectángulo centrado (st.popover) — al hacer
-    clic muestra el detalle y la recomendación, sin necesitar CSS forzado
-    para centrar el texto (los botones de Streamlit ya vienen centrados)."""
+    """Cada segmento como un rectángulo de solo borde (sin relleno) que se
+    expande hacia abajo con el detalle y la recomendación al hacer clic."""
     descripcion, recomendacion = DESCRIPCION_SEGMENTOS.get(nombre_segmento, ("", ""))
-    with st.popover(nombre_segmento, use_container_width=True):
+    with st.expander(nombre_segmento):
         st.markdown(f"**Qué significa:** {descripcion}")
         st.markdown(f"**Recomendación:** {recomendacion}")
 
