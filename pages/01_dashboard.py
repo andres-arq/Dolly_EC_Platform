@@ -162,11 +162,8 @@ divisor()
 # ==============================================
 st.subheader("Oportunidades de recuperación")
 st.caption(
-    "Clientes que llegaron a un paso real del checkout (Carrito, Dirección/despacho, "
-    "Forma de pago o Datos personales) sin completar la compra — son pocos frente al "
-    "total de la base, por eso tienen su propio gráfico en vez de perderse en el de abajo. "
-    "Las barras de clientes y de potencial CLP están en % del total recuperable de cada "
-    "métrica, para comparar directamente si un segmento pesa más en clientes o en plata."
+    "Carritos abandonados en un paso real del checkout. Barras en % del total "
+    "recuperable, para comparar clientes vs. plata por segmento."
 )
 
 if not resumen_rec.empty:
@@ -215,6 +212,10 @@ if not resumen_rec.empty:
     fig_rec.update_xaxes(range=[0, 100], ticksuffix="%")
     fig_rec.update_yaxes(automargin=True)
     st.plotly_chart(estilizar_grafico(fig_rec), use_container_width=True, theme=None)
+    st.caption(
+        "El paso de abandono vía CSV VTEX solo cubre ~30-31 días hacia atrás — "
+        "argumento a favor de la conexión por API."
+    )
 else:
     st.info("No hay clientes en segmentos de recuperación en este momento.")
 
@@ -224,11 +225,7 @@ divisor()
 # CLIENTES PRIORITARIOS Y RECIENTES
 # ==============================================
 st.subheader("🎯 Clientes prioritarios ahora")
-st.caption(
-    "Ordenados primero por urgencia de segmento (Recuperable Urgente/Flete arriba) "
-    "y, dentro de cada nivel, por quién tuvo actividad más reciente. Es la lista "
-    "de a quién contactar hoy."
-)
+st.caption("Ordenados por urgencia de segmento, luego por actividad más reciente.")
 
 cantidad = st.slider("Cantidad de clientes a mostrar", min_value=10, max_value=100, value=25, step=5)
 df_prioritarios = clientes_prioritarios(df, n=cantidad)
@@ -295,12 +292,7 @@ divisor()
 # FLUJO DE CLASIFICACIÓN — CÓMO AVANZA UN CLIENTE ENTRE SEGMENTOS
 # ==============================================
 st.subheader("🧭 Cómo avanza un cliente entre segmentos")
-st.caption(
-    "Haz clic en cada segmento para ver su detalle y la recomendación. Es una "
-    "simplificación en 3 rutas de la misma lógica que usa el sistema para clasificar "
-    "— en la realidad es un árbol de decisión, no una sola línea, pero estas son las "
-    "rutas que más se repiten."
-)
+st.caption("Haz clic en cada segmento para ver el detalle y la recomendación.")
 
 
 def _paso_flujo(nombre_segmento):
