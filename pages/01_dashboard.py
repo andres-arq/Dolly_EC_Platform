@@ -295,9 +295,23 @@ st.subheader("🧭 Cómo avanza un cliente entre segmentos")
 st.caption("Haz clic en cada segmento para ver el detalle y la recomendación.")
 
 
+def _caja_intro_ruta(html_contenido):
+    """Caja que diferencia visualmente el párrafo introductorio de cada ruta."""
+    st.markdown(
+        f"""<div style="background:{CARD}; border:0.5px solid {BORDE}; border-radius:10px;
+                    padding:14px 16px; margin-bottom:16px; min-height:92px;">
+            {html_contenido}
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+
 def _paso_flujo(nombre_segmento):
+    """Cada segmento como un botón-rectángulo centrado (st.popover) — al hacer
+    clic muestra el detalle y la recomendación, sin necesitar CSS forzado
+    para centrar el texto (los botones de Streamlit ya vienen centrados)."""
     descripcion, recomendacion = DESCRIPCION_SEGMENTOS.get(nombre_segmento, ("", ""))
-    with st.expander(nombre_segmento):
+    with st.popover(nombre_segmento, use_container_width=True):
         st.markdown(f"**Qué significa:** {descripcion}")
         st.markdown(f"**Recomendación:** {recomendacion}")
 
@@ -315,16 +329,25 @@ def _flujo_vertical(secuencia):
 col_ruta1, col_ruta2, col_ruta3 = st.columns(3, gap="large")
 
 with col_ruta1:
-    st.markdown(
-        "**Ruta 1 — Abandonó el checkout** *(no es secuencial — cada cliente cae en "
-        "una sola, según el paso exacto donde se detuvo, ordenadas de más a menos urgente)*"
+    _caja_intro_ruta(
+        f"<b>Ruta 1 — Abandonó el checkout</b><br>"
+        f"<span style='font-size:13px; color:{TEXTO_SECUNDARIO};'>"
+        f"Según el paso exacto donde abandonó, ordenado de más a menos urgente.</span>"
     )
     _flujo_vertical(["Recuperable Urgente", "Recuperable Flete", "Recuperable Temprano", "Recuperable Bajo"])
 
 with col_ruta2:
-    st.markdown("**Ruta 2 — Cliente de alto monto (≥$100.000), a medida que pasa el tiempo sin volver a comprar**")
+    _caja_intro_ruta(
+        f"<b>Ruta 2 — Cliente de alto monto</b><br>"
+        f"<span style='font-size:13px; color:{TEXTO_SECUNDARIO};'>"
+        f"≥$100.000, a medida que pasa el tiempo sin volver a comprar.</span>"
+    )
     _flujo_vertical(["Cliente VIP", "Alto Valor Reciente", "Alto Valor En Riesgo", "Alto Valor Perdido"])
 
 with col_ruta3:
-    st.markdown("**Ruta 3 — Actividad general, a medida que pasa el tiempo sin actividad**")
+    _caja_intro_ruta(
+        f"<b>Ruta 3 — Actividad general</b><br>"
+        f"<span style='font-size:13px; color:{TEXTO_SECUNDARIO};'>"
+        f"A medida que pasa el tiempo sin actividad.</span>"
+    )
     _flujo_vertical(["Potencial Sin Carrito", "Potencial Con Carrito", "Cliente Activo", "Inactivo", "Perdido"])
