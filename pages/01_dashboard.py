@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pipeline_Dolly import (
     cargar_perfil_clientes, calcular_estadisticas,
-    clientes_prioritarios, resumen_recuperables,
+    clientes_prioritarios, resumen_recuperables, formatear_telefono_cl,
     DESCRIPCION_SEGMENTOS, ORDEN_PRIORIDAD_SEGMENTOS, SEGMENTOS_RECUPERABLES, PARAMS,
 )
 from estilo_Dolly import (
@@ -82,33 +82,13 @@ def _o_sin_dato(valor):
     return valor if pd.notna(valor) and str(valor).strip() not in ("", "nan", "None") else "Sin dato"
 
 
-def _formatear_telefono_cl(numero):
-    """
-    Formatea a '+56 9 0000 0000'. Acepta el número venga como venga en VTEX
-    (con o sin +, con o sin 56, con espacios/guiones) — se queda solo con los
-    dígitos y arma el formato chileno estándar de celular (9 dígitos después
-    del 56). Si no calza con ese patrón (fijo, extranjero, dato corrupto),
-    devuelve el número tal cual llegó en vez de forzar un formato incorrecto.
-    """
-    solo_digitos = "".join(ch for ch in str(numero) if ch.isdigit())
-
-    if solo_digitos.startswith("56") and len(solo_digitos) == 11:
-        cod_pais, resto = solo_digitos[:2], solo_digitos[2:]
-    elif len(solo_digitos) == 9 and solo_digitos.startswith("9"):
-        cod_pais, resto = "56", solo_digitos
-    else:
-        return str(numero)  # formato no reconocido — se muestra tal cual
-
-    return f"+{cod_pais} {resto[0]} {resto[1:5]} {resto[5:9]}"
-
-
 def _telefono_visible(c):
     """Muestra el número real (formateado) si existe; si solo tenemos el
     booleano tiene_telefono=True pero no el número (datos antiguos sin
     re-procesar), cae de vuelta al ícono genérico en vez de mostrar 'None'."""
     numero = c.get("homePhone")
     if pd.notna(numero) and str(numero).strip() not in ("", "nan", "None"):
-        return f"📞 {_formatear_telefono_cl(numero)}"
+        return f"📞 {formatear_telefono_cl(numero)}"
     return "📞 Teléfono" if c.get("tiene_telefono") else "—"
 
 
@@ -185,8 +165,8 @@ st.caption(
     "Clientes que llegaron a un paso real del checkout (Carrito, Dirección/despacho, "
     "Forma de pago o Datos personales) sin completar la compra — son pocos frente al "
     "total de la base, por eso tienen su propio gráfico en vez de perderse en el de abajo. "
-    "Ambas barras están en % del total recuperable, para comparar directamente si un "
-    "segmento pesa más en clientes o en plata."
+    "Las barras de clientes y de potencial CLP están en % del total recuperable de cada "
+    "métrica, para comparar directamente si un segmento pesa más en clientes o en plata."
 )
 
 if not resumen_rec.empty:
@@ -195,33 +175,46 @@ if not resumen_rec.empty:
     resumen_rec["pct_clientes"]  = resumen_rec["clientes"] / total_clientes_rec * 100
     resumen_rec["pct_potencial"] = resumen_rec["potencial_clp"] / total_potencial_rec * 100
 
-    col_rec1, col_rec2 = st.columns(2, gap="large")
-    with col_rec1:
-        fig_rec1 = px.bar(
-            resumen_rec.sort_values("pct_clientes"),
-            x="pct_clientes", y="segmento", orientation="h",
-            color_discrete_sequence=[ROJO],
-            text=resumen_rec.sort_values("pct_clientes")["clientes"].map(lambda v: f"{v:,}"),
-            title="% de clientes recuperables, por segmento",
-        )
-        fig_rec1.update_traces(textposition="outside")
-        fig_rec1.update_layout(showlegend=False, yaxis_title=None, xaxis_title="% del total recuperable")
-        fig_rec1.update_xaxes(range=[0, 100], ticksuffix="%")
-        fig_rec1.update_yaxes(automargin=True)
-        st.plotly_chart(estilizar_grafico(fig_rec1), use_container_width=True, theme=None)
-    with col_rec2:
-        fig_rec2 = px.bar(
-            resumen_rec.sort_values("pct_potencial"),
-            x="pct_potencial", y="segmento", orientation="h",
-            color_discrete_sequence=[VINO],
-            text=resumen_rec.sort_values("pct_potencial")["potencial_clp"].map(lambda v: f"${v:,.0f}"),
-            title="% del potencial CLP recuperable, por segmento",
-        )
-        fig_rec2.update_traces(textposition="outside")
-        fig_rec2.update_layout(showlegend=False, yaxis_title=None, xaxis_title="% del total recuperable")
-        fig_rec2.update_xaxes(range=[0, 100], ticksuffix="%")
-        fig_rec2.update_yaxes(automargin=True)
-        st.plotly_chart(estilizar_grafico(fig_rec2), use_container_width=True, theme=None)
+    # Orden de segmentos consistente en ambas series (de mayor a menor % de clientes)
+    orden_segmentos_rec = (
+        resumen_rec.sort_values("pct_clientes", ascending=True)["segmento"].tolist()
+    )
+
+    # Combinamos ambas métricas en un solo dataframe "largo" para graficar barras
+    # agrupadas — un color para clientes, otro para potencial CLP, mismo eje %
+    # para que se puedan comparar directamente sin perder el detalle (el texto
+    # de cada barra sigue mostrando el número real, no solo el %).
+    df_combo = pd.concat([
+        pd.DataFrame({
+            "segmento": resumen_rec["segmento"],
+            "tipo": "Clientes",
+            "pct": resumen_rec["pct_clientes"],
+            "texto": resumen_rec["clientes"].map(lambda v: f"{v:,}"),
+        }),
+        pd.DataFrame({
+            "segmento": resumen_rec["segmento"],
+            "tipo": "Potencial CLP",
+            "pct": resumen_rec["pct_potencial"],
+            "texto": resumen_rec["potencial_clp"].map(lambda v: f"${v:,.0f}"),
+        }),
+    ], ignore_index=True)
+
+    fig_rec = px.bar(
+        df_combo,
+        x="pct", y="segmento", color="tipo", orientation="h", barmode="group",
+        text="texto",
+        color_discrete_map={"Clientes": ROJO, "Potencial CLP": VINO},
+        category_orders={"segmento": orden_segmentos_rec},
+        title="Clientes vs. potencial CLP recuperable, por segmento (% del total recuperable)",
+    )
+    fig_rec.update_traces(textposition="outside")
+    fig_rec.update_layout(
+        yaxis_title=None, xaxis_title="% del total recuperable",
+        legend_title_text="", legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+    )
+    fig_rec.update_xaxes(range=[0, 100], ticksuffix="%")
+    fig_rec.update_yaxes(automargin=True)
+    st.plotly_chart(estilizar_grafico(fig_rec), use_container_width=True, theme=None)
 else:
     st.info("No hay clientes en segmentos de recuperación en este momento.")
 
