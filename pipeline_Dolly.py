@@ -108,6 +108,27 @@ def cargar_buyer_enrichment():
     return pd.DataFrame()
 
 
+def formatear_telefono_cl(numero):
+    """
+    Formatea a '+56 9 0000 0000'. Acepta el número venga como venga en VTEX
+    (con o sin +, con o sin 56, con espacios/guiones) — se queda solo con los
+    dígitos y arma el formato chileno estándar de celular (9 dígitos después
+    del 56). Si no calza con ese patrón (fijo, extranjero, dato corrupto),
+    devuelve el número tal cual llegó en vez de forzar un formato incorrecto.
+    Compartida entre Dashboard y Perfil de Cliente para no duplicar la lógica.
+    """
+    solo_digitos = "".join(ch for ch in str(numero) if ch.isdigit())
+
+    if solo_digitos.startswith("56") and len(solo_digitos) == 11:
+        cod_pais, resto = solo_digitos[:2], solo_digitos[2:]
+    elif len(solo_digitos) == 9 and solo_digitos.startswith("9"):
+        cod_pais, resto = "56", solo_digitos
+    else:
+        return str(numero)  # formato no reconocido — se muestra tal cual
+
+    return f"+{cod_pais} {resto[0]} {resto[1:5]} {resto[5:9]}"
+
+
 def cargar_puntos_blueexpress():
     """
     Carga puntos Blue Express desde CSV si existe,
