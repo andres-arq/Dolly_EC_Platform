@@ -79,15 +79,17 @@ df_filtrado = df_filtrado[
 
 divisor()
 st.subheader(f"Resultados — {len(df_filtrado):,} clientes")
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     kpi_card("Clientes filtrados", f"{len(df_filtrado):,}")
 with col2:
     kpi_card("Monto medio", f"${df_filtrado['monto_carrito'].mean():,.0f}")
 with col3:
-    kpi_card("Recencia promedio", f"{df_filtrado['recencia_dias'].mean():.0f} días", color=GRIS)
+    kpi_card("Monto mediano", f"${df_filtrado['monto_carrito'].median():,.0f}")
 with col4:
+    kpi_card("Recencia promedio", f"{df_filtrado['recencia_dias'].mean():.0f} días", color=GRIS)
+with col5:
     potencial = len(df_filtrado) * df_filtrado["monto_carrito"].mean()
     kpi_card("Potencial CLP", f"${potencial:,.0f}", color=ROJO)
 
