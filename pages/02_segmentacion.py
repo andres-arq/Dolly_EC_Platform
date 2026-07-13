@@ -338,34 +338,35 @@ else:
         # que usa la segmentación real (UMBRALES en pipeline_Dolly.py), para
         # que el gráfico no sea solo descriptivo sino que diga "actúa aquí".
         total_validos = len(recencia_valida)
-        n_ventana_vtex = int((recencia_valida <= 30).sum())
+        idx_ventana_vtex = recencia_valida[recencia_valida <= 30].index
+        n_ventana_vtex   = len(idx_ventana_vtex)
+        monto_ventana_vtex = df_panorama.loc[idx_ventana_vtex, "monto_carrito"].sum()
         n_activos      = int((recencia_valida <= UMBRALES["recencia_activo"]).sum())
         n_riesgo       = int(((recencia_valida > UMBRALES["recencia_activo"]) &
                                (recencia_valida <= UMBRALES["recencia_riesgo"])).sum())
-        n_perdiendo    = int((recencia_valida > UMBRALES["recencia_riesgo"]).sum())
 
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1, col_m2 = st.columns(2)
         with col_m1:
             kpi_card(
                 "Con dato de abandono confiable", f"{n_ventana_vtex:,}", color=ROJO,
                 ayuda=f"Últimos 30 días (ventana real del CSV VTEX) · {n_ventana_vtex/total_validos*100:.0f}% del filtro",
+            )
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            kpi_card(
+                "Potencial recuperable en esa ventana", f"${monto_ventana_vtex:,.0f}", color=ROJO,
+                ayuda="Suma de monto_carrito de esos clientes con dato confiable.",
             )
         with col_m2:
             kpi_card(
                 "Activos", f"{n_activos:,}", color=NEGRO,
                 ayuda=f"≤{UMBRALES['recencia_activo']} días sin sesión · {n_activos/total_validos*100:.0f}%",
             )
-        with col_m3:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
             kpi_card(
                 "Entrando en riesgo", f"{n_riesgo:,}", color=VINO,
                 ayuda=f"{UMBRALES['recencia_activo']}-{UMBRALES['recencia_riesgo']} días · {n_riesgo/total_validos*100:.0f}%",
             )
-        with col_m4:
-            kpi_card(
-                "Perdiéndose", f"{n_perdiendo:,}", color=GRIS,
-                ayuda=f">{UMBRALES['recencia_riesgo']} días sin sesión · {n_perdiendo/total_validos*100:.0f}%",
-            )
-        st.caption("Umbrales de urgencia: los mismos que usa la segmentación (Cliente Activo / En Riesgo / Perdido).")
+        st.caption("Umbrales de urgencia: los mismos que usa la segmentación (Cliente Activo / En Riesgo).")
 
     divisor()
 
