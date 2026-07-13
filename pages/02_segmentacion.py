@@ -16,7 +16,7 @@ from pipeline_Dolly import (
 )
 from estilo_Dolly import (
     aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
-    NEGRO, ROJO, VINO, GRIS, GRIS_CLARO, TEXTO_SECUNDARIO, SECUENCIA_CATEGORICA, ESCALA_ROJA,
+    NEGRO, ROJO, VINO, GRIS, GRIS_CLARO, CARD, BORDE, TEXTO_SECUNDARIO, SECUENCIA_CATEGORICA, ESCALA_ROJA,
 )
 
 st.set_page_config(page_title="Segmentación — Dolly", page_icon="👥", layout="wide")
