@@ -84,11 +84,11 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
     kpi_card("Clientes filtrados", f"{len(df_filtrado):,}")
 with col2:
-    kpi_card("Monto mediano", f"${df_filtrado['monto_carrito'].median():,.0f}")
+    kpi_card("Monto medio", f"${df_filtrado['monto_carrito'].mean():,.0f}")
 with col3:
     kpi_card("Recencia promedio", f"{df_filtrado['recencia_dias'].mean():.0f} días", color=GRIS)
 with col4:
-    potencial = len(df_filtrado) * df_filtrado["monto_carrito"].median()
+    potencial = len(df_filtrado) * df_filtrado["monto_carrito"].mean()
     kpi_card("Potencial CLP", f"${potencial:,.0f}", color=ROJO)
 
 divisor()
@@ -345,34 +345,42 @@ else:
         n_riesgo       = int(((recencia_valida > UMBRALES["recencia_activo"]) &
                                (recencia_valida <= UMBRALES["recencia_riesgo"])).sum())
 
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            st.markdown(f"""
-                <div style="background:{CARD}; border:0.5px solid {BORDE}; border-radius:10px;
-                            padding:18px 20px; height:100%;">
-                    <div style="font-size:28px; font-weight:700; color:{ROJO};">{n_ventana_vtex:,}</div>
+        st.markdown(f"""
+            <div style="display:flex; gap:20px; align-items:stretch; flex-wrap:nowrap;">
+                <div style="flex:1 1 0; min-width:0; background:{CARD}; border:0.5px solid {BORDE};
+                            border-radius:10px; padding:18px 20px;">
+                    <div style="font-size:26px; font-weight:700; color:{ROJO};">{n_ventana_vtex:,}</div>
                     <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">Con dato de abandono confiable</div>
                     <div style="font-size:11px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">
                         Últimos 30 días (ventana real del CSV VTEX) · {n_ventana_vtex/total_validos*100:.0f}% del filtro
                     </div>
-                    <hr style="margin:16px 0; border:none; border-top:0.5px solid {BORDE};">
-                    <div style="font-size:28px; font-weight:700; color:{ROJO};">${monto_ventana_vtex:,.0f}</div>
+                    <hr style="margin:14px 0; border:none; border-top:0.5px solid {BORDE};">
+                    <div style="font-size:26px; font-weight:700; color:{ROJO};">${monto_ventana_vtex:,.0f}</div>
                     <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">Potencial recuperable en esa ventana</div>
                     <div style="font-size:11px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">
                         Suma de monto_carrito de esos clientes con dato confiable.
                     </div>
                 </div>
-            """, unsafe_allow_html=True)
-        with col_m2:
-            kpi_card(
-                "Activos", f"{n_activos:,}", color=NEGRO,
-                ayuda=f"≤{UMBRALES['recencia_activo']} días sin sesión · {n_activos/total_validos*100:.0f}%",
-            )
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-            kpi_card(
-                "Entrando en riesgo", f"{n_riesgo:,}", color=VINO,
-                ayuda=f"{UMBRALES['recencia_activo']}-{UMBRALES['recencia_riesgo']} días · {n_riesgo/total_validos*100:.0f}%",
-            )
+                <div style="flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:10px;">
+                    <div style="flex:1; background:{CARD}; border:0.5px solid {BORDE}; border-radius:10px;
+                                padding:14px 16px;">
+                        <div style="font-size:24px; font-weight:700; color:{NEGRO};">{n_activos:,}</div>
+                        <div style="font-size:12px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">Activos</div>
+                        <div style="font-size:11px; color:{TEXTO_SECUNDARIO}; margin-top:4px;">
+                            ≤{UMBRALES['recencia_activo']} días sin sesión · {n_activos/total_validos*100:.0f}%
+                        </div>
+                    </div>
+                    <div style="flex:1; background:{CARD}; border:0.5px solid {BORDE}; border-radius:10px;
+                                padding:14px 16px;">
+                        <div style="font-size:24px; font-weight:700; color:{VINO};">{n_riesgo:,}</div>
+                        <div style="font-size:12px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">Entrando en riesgo</div>
+                        <div style="font-size:11px; color:{TEXTO_SECUNDARIO}; margin-top:4px;">
+                            {UMBRALES['recencia_activo']}-{UMBRALES['recencia_riesgo']} días · {n_riesgo/total_validos*100:.0f}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         st.caption("Umbrales de urgencia: los mismos que usa la segmentación (Cliente Activo / En Riesgo).")
 
     divisor()
