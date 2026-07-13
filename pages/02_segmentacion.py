@@ -4,7 +4,6 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import sys
@@ -17,7 +16,7 @@ from pipeline_Dolly import (
 )
 from estilo_Dolly import (
     aplicar_estilo, sidebar_dolly, encabezado_pagina, kpi_card, divisor, estilizar_grafico,
-    NEGRO, ROJO, VINO, GRIS, GRIS_CLARO, TEXTO_SECUNDARIO, SECUENCIA_CATEGORICA,
+    NEGRO, ROJO, VINO, GRIS, GRIS_CLARO, TEXTO_SECUNDARIO, SECUENCIA_CATEGORICA, ESCALA_ROJA,
 )
 
 st.set_page_config(page_title="Segmentación — Dolly", page_icon="👥", layout="wide")
@@ -242,52 +241,92 @@ else:
     # ==============================================
     st.subheader("Distribución de recencia")
 
-    # Binning manual (en vez de px.histogram directo) para poder colorear cada
-    # barra según su propio valor. Gradiente invertido a propósito: el bin más
-    # reciente (menos días) recibe el color más denso/vivo, y se va difuminando
-    # a medida que aumenta la recencia — la intensidad del color representa
-    # "qué tan vivo" está ese grupo de clientes.
-    conteos, bordes = np.histogram(df_panorama["recencia_dias"], bins=30)
-    centros = (bordes[:-1] + bordes[1:]) / 2
-    df_bins_recencia = pd.DataFrame({
-        "centro": centros,
-        "clientes": conteos,
-        "rango": [f"{int(bordes[i])}–{int(bordes[i+1])} días" for i in range(len(bordes) - 1)],
-    })
+    # Usamos la fecha real de última sesión (no "días" relativos) para que el
+    # eje X hable en mes/año — mucho más legible para planificar que un
+    # conteo de días desde hoy que cambia cada vez que se mira el dashboard.
+    fechas = pd.to_datetime(df_panorama["ultima_sesion"], errors="coerce", utc=True)
+    recencia_valida = df_panorama.loc[fechas.notna(), "recencia_dias"]
+    fechas = fechas.dropna()
 
-    ESCALA_ROJA_INVERTIDA = [[0, VINO], [0.5, ROJO], [1, "#F3D6D3"]]
+    MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 
-    fig3 = px.bar(
-        df_bins_recencia,
-        x="centro",
-        y="clientes",
-        color="centro",
-        color_continuous_scale=ESCALA_ROJA_INVERTIDA,
-        title="Tendencia de sesiones",
-        labels={"centro": "Días", "clientes": "Clientes"},
-        custom_data=["rango"],
-    )
-    fig3.update_traces(
-        marker_line_color="#FFFFFF",
-        marker_line_width=1.5,
-        hovertemplate="%{customdata[0]}<br>%{y:,} clientes<extra></extra>",
-        name="Clientes",
-    )
+    if fechas.empty:
+        st.info("No hay fechas de última sesión válidas en este filtro.")
+    else:
+        meses = fechas.dt.tz_localize(None).values.astype("datetime64[M]")
+        df_bins_recencia = (
+            pd.Series(meses).value_counts().sort_index().rename_axis("mes").reset_index(name="clientes")
+        )
+        df_bins_recencia["mes"] = pd.to_datetime(df_bins_recencia["mes"])
+        df_bins_recencia["etiqueta"] = df_bins_recencia["mes"].apply(
+            lambda d: f"{MESES_ES[d.month - 1]} {d.year}"
+        )
+        df_bins_recencia["orden"] = df_bins_recencia["mes"].map(pd.Timestamp.toordinal)
 
-    # Línea de tendencia — promedio móvil de 3 bins para suavizar el "diente de
-    # sierra" propio del binning, sin ocultar las barras reales debajo.
-    tendencia = pd.Series(conteos).rolling(window=3, center=True, min_periods=1).mean()
-    fig3.add_trace(go.Scatter(
-        x=centros, y=tendencia,
-        mode="lines",
-        line=dict(color=NEGRO, width=2.5, shape="spline"),
-        name="Tendencia",
-        hoverinfo="skip",
-    ))
+        # Gradiente: mes más reciente (más cercano a hoy) = color más denso/vivo,
+        # se va difuminando hacia atrás en el tiempo.
+        fig3 = px.bar(
+            df_bins_recencia,
+            x="etiqueta",
+            y="clientes",
+            color="orden",
+            color_continuous_scale=ESCALA_ROJA,
+            title="Tendencia de sesiones",
+            labels={"etiqueta": "Mes", "clientes": "Clientes"},
+            category_orders={"etiqueta": df_bins_recencia["etiqueta"].tolist()},
+        )
+        fig3.update_traces(
+            marker_line_color="#FFFFFF",
+            marker_line_width=1.5,
+            hovertemplate="%{x}<br>%{y:,} clientes<extra></extra>",
+            name="Clientes",
+        )
 
-    fig3.update_layout(bargap=0.12, coloraxis_showscale=False, showlegend=True, legend_title_text="")
-    st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
-    st.caption("Clientes por última sesión, con línea de tendencia suavizada.")
+        # Línea de tendencia — promedio móvil de 3 meses.
+        tendencia = df_bins_recencia["clientes"].rolling(window=3, center=True, min_periods=1).mean()
+        fig3.add_trace(go.Scatter(
+            x=df_bins_recencia["etiqueta"], y=tendencia,
+            mode="lines",
+            line=dict(color=NEGRO, width=2.5, shape="spline"),
+            name="Tendencia",
+            hoverinfo="skip",
+        ))
+
+        fig3.update_layout(bargap=0.12, coloraxis_showscale=False, showlegend=True, legend_title_text="")
+        st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
+
+        # ---- Valor agregado: métricas de urgencia con los mismos umbrales
+        # que usa la segmentación real (UMBRALES en pipeline_Dolly.py), para
+        # que el gráfico no sea solo descriptivo sino que diga "actúa aquí".
+        total_validos = len(recencia_valida)
+        n_ventana_vtex = int((recencia_valida <= 30).sum())
+        n_activos      = int((recencia_valida <= UMBRALES["recencia_activo"]).sum())
+        n_riesgo       = int(((recencia_valida > UMBRALES["recencia_activo"]) &
+                               (recencia_valida <= UMBRALES["recencia_riesgo"])).sum())
+        n_perdiendo    = int((recencia_valida > UMBRALES["recencia_riesgo"]).sum())
+
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            kpi_card(
+                "Con dato de abandono confiable", f"{n_ventana_vtex:,}", color=ROJO,
+                ayuda=f"Últimos 30 días (ventana real del CSV VTEX) · {n_ventana_vtex/total_validos*100:.0f}% del filtro",
+            )
+        with col_m2:
+            kpi_card(
+                "Activos", f"{n_activos:,}", color=NEGRO,
+                ayuda=f"≤{UMBRALES['recencia_activo']} días sin sesión · {n_activos/total_validos*100:.0f}%",
+            )
+        with col_m3:
+            kpi_card(
+                "Entrando en riesgo", f"{n_riesgo:,}", color=VINO,
+                ayuda=f"{UMBRALES['recencia_activo']}-{UMBRALES['recencia_riesgo']} días · {n_riesgo/total_validos*100:.0f}%",
+            )
+        with col_m4:
+            kpi_card(
+                "Perdiéndose", f"{n_perdiendo:,}", color=GRIS,
+                ayuda=f">{UMBRALES['recencia_riesgo']} días sin sesión · {n_perdiendo/total_validos*100:.0f}%",
+            )
+        st.caption("Umbrales de urgencia: los mismos que usa la segmentación (Cliente Activo / En Riesgo / Perdido).")
 
     divisor()
 
