@@ -45,7 +45,7 @@ if df.empty:
 # Estadísticas por segmento para mostrar junto a cada plantilla
 stats_segmento = df.groupby("segmento").agg(
     clientes      = ("userId",         "count"),
-    monto_mediano = ("monto_carrito",   "median"),
+    monto_medio   = ("monto_carrito",   "mean"),
     pct_newsletter= ("tiene_newsletter","mean"),
 ).round(1).reset_index()
 stats_segmento["pct_newsletter"] = (stats_segmento["pct_newsletter"] * 100).round(1)
@@ -79,7 +79,7 @@ if info:
     with col1:
         kpi_card("Clientes en segmento", f"{info.get('clientes', 0):,}")
     with col2:
-        kpi_card("Monto mediano", f"${info.get('monto_mediano', 0):,.0f}")
+        kpi_card("Monto medio", f"${info.get('monto_medio', 0):,.0f}")
     with col3:
         kpi_card("% Contactables newsletter", f"{info.get('pct_newsletter', 0):.1f}%", color=GRIS)
     with col4:
