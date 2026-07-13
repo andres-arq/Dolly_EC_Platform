@@ -138,7 +138,7 @@ divisor()
 # ==============================================
 # KPI CARDS
 # ==============================================
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 
 with col1:
     kpi_card("Total clientes", f"{stats['total_clientes']:,}")
@@ -147,12 +147,15 @@ with col2:
     kpi_card("Clientes recuperables ahora", f"{total_recuperables:,}", color=ROJO)
 
 with col3:
-    kpi_card("Monto medio carrito (toda la base)", f"${stats['monto_medio']:,.0f}")
+    kpi_card("Monto medio carrito", f"${stats['monto_medio']:,.0f}")
 
 with col4:
-    kpi_card("% Contactables (newsletter)", f"{stats['pct_contactables']:.1f}%", color=GRIS)
+    kpi_card("Monto mediano carrito", f"${stats['monto_mediano']:,.0f}")
 
 with col5:
+    kpi_card("% Contactables (newsletter)", f"{stats['pct_contactables']:.1f}%", color=GRIS)
+
+with col6:
     kpi_card("% Sobre umbral flete gratis", f"{stats['pct_sobre_umbral']:.1f}%", color=VINO)
 
 divisor()
@@ -270,6 +273,7 @@ df_resumen = df.groupby("segmento").agg(
     clientes      = ("userId",        "count"),
     recencia_prom = ("recencia_dias",  "mean"),
     monto_medio   = ("monto_carrito",  "mean"),
+    monto_mediano = ("monto_carrito",  "median"),
     pct_newsletter= ("tiene_newsletter","mean"),
     pct_telefono  = ("tiene_telefono", "mean"),
 ).round(1).reset_index()
@@ -281,7 +285,7 @@ df_resumen                     = df_resumen.sort_values("clientes", ascending=Fa
 
 df_resumen.columns = [
     "Segmento", "Clientes", "Recencia Prom (días)",
-    "Monto Medio", "% Newsletter", "% Teléfono", "Potencial CLP"
+    "Monto Medio", "Monto Mediano", "% Newsletter", "% Teléfono", "Potencial CLP"
 ]
 
 st.dataframe(df_resumen, use_container_width=True, hide_index=True)
