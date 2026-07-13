@@ -610,6 +610,7 @@ def calcular_estadisticas(df):
     return {
         "total_clientes":       len(df),
         "monto_medio":          df["monto_carrito"].mean(),
+        "monto_mediano":        df["monto_carrito"].median(),
         "pct_contactables":     df["tiene_newsletter"].mean() * 100,
         "pct_sobre_umbral":     df["sobre_umbral"].mean() * 100,
         "recencia_promedio":    df["recencia_dias"].mean(),
@@ -719,6 +720,7 @@ def resumen_recuperables(df):
     resumen = df_rec.groupby("segmento").agg(
         clientes = ("userId", "count"),
         monto_medio = ("monto_carrito", "mean"),
+        monto_mediano = ("monto_carrito", "median"),
     ).reset_index()
     resumen["potencial_clp"] = resumen["clientes"] * resumen["monto_medio"]
     resumen["orden"] = resumen["segmento"].map(ORDEN_PRIORIDAD_SEGMENTOS)
