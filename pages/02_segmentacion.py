@@ -258,41 +258,58 @@ else:
             pd.Series(meses).value_counts().sort_index().rename_axis("mes").reset_index(name="clientes")
         )
         df_bins_recencia["mes"] = pd.to_datetime(df_bins_recencia["mes"])
-        df_bins_recencia["etiqueta"] = df_bins_recencia["mes"].apply(
-            lambda d: f"{MESES_ES[d.month - 1]} {d.year}"
-        )
+        # "orden" cronológico (ascendente) se usa SOLO para el color — el más
+        # reciente siempre tiene el ordinal más alto, sin importar en qué
+        # posición del eje X se dibuje.
         df_bins_recencia["orden"] = df_bins_recencia["mes"].map(pd.Timestamp.toordinal)
+        df_bins_recencia["anio"] = df_bins_recencia["mes"].dt.year.astype(str)
+        df_bins_recencia["mes_abrev"] = df_bins_recencia["mes"].apply(lambda d: MESES_ES[d.month - 1])
 
-        # Gradiente: mes más reciente (más cercano a hoy) = color más denso/vivo,
-        # se va difuminando hacia atrás en el tiempo.
-        fig3 = px.bar(
-            df_bins_recencia,
-            x="etiqueta",
-            y="clientes",
-            color="orden",
-            color_continuous_scale=ESCALA_ROJA,
-            title="Tendencia de sesiones",
-            labels={"etiqueta": "Mes", "clientes": "Clientes"},
-            category_orders={"etiqueta": df_bins_recencia["etiqueta"].tolist()},
+        # Más reciente a la izquierda, más antiguo a la derecha (igual que
+        # "0 días de recencia" siempre partía a la izquierda en la versión anterior).
+        df_bins_recencia = df_bins_recencia.sort_values("mes", ascending=False).reset_index(drop=True)
+
+        # Barra "espaciadora" invisible (altura 0, sin etiqueta de mes) entre
+        # cada cambio de año — corta el agrupamiento automático de Plotly ahí,
+        # dando una separación notoria pero sutil entre años sin necesitar
+        # líneas o formas adicionales.
+        filas = []
+        for i, fila in df_bins_recencia.iterrows():
+            filas.append(fila)
+            es_ultimo = i == len(df_bins_recencia) - 1
+            if not es_ultimo and df_bins_recencia.loc[i + 1, "anio"] != fila["anio"]:
+                filas.append(pd.Series({
+                    "mes": pd.NaT, "clientes": 0, "orden": fila["orden"],
+                    "anio": "", "mes_abrev": "",
+                }))
+        df_grafico = pd.DataFrame(filas).reset_index(drop=True)
+
+        colores_bar = px.colors.sample_colorscale(
+            ESCALA_ROJA,
+            [(v - df_bins_recencia["orden"].min()) / max(df_bins_recencia["orden"].max() - df_bins_recencia["orden"].min(), 1)
+             for v in df_grafico["orden"]],
         )
-        fig3.update_traces(
-            marker_line_color="#FFFFFF",
-            marker_line_width=1.5,
-            hovertemplate="%{x}<br>%{y:,} clientes<extra></extra>",
+
+        fig3 = go.Figure()
+        fig3.add_trace(go.Bar(
+            x=[df_grafico["anio"], df_grafico["mes_abrev"]],
+            y=df_grafico["clientes"],
+            marker=dict(color=colores_bar, line=dict(color="#FFFFFF", width=1.5)),
             name="Clientes",
-        )
-
-        # Línea de tendencia — promedio móvil de 3 meses.
-        tendencia = df_bins_recencia["clientes"].rolling(window=3, center=True, min_periods=1).mean()
+            hovertemplate="%{y:,} clientes<extra></extra>",
+        ))
         fig3.add_trace(go.Scatter(
-            x=df_bins_recencia["etiqueta"], y=tendencia,
+            x=[df_grafico["anio"], df_grafico["mes_abrev"]],
+            y=df_grafico["clientes"].rolling(window=3, center=True, min_periods=1).mean(),
             mode="lines",
             line=dict(color=NEGRO, width=2.5, shape="spline"),
             name="Tendencia",
             hoverinfo="skip",
         ))
-
-        fig3.update_layout(bargap=0.12, coloraxis_showscale=False, showlegend=True, legend_title_text="")
+        fig3.update_layout(
+            title="Tendencia de sesiones", bargap=0.12, showlegend=True, legend_title_text="",
+            yaxis_title="Clientes",
+        )
         st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
 
         # ---- Valor agregado: métricas de urgencia con los mismos umbrales
