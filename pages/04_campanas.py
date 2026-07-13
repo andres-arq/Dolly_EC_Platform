@@ -46,6 +46,7 @@ if df.empty:
 stats_segmento = df.groupby("segmento").agg(
     clientes      = ("userId",         "count"),
     monto_medio   = ("monto_carrito",   "mean"),
+    monto_mediano = ("monto_carrito",   "median"),
     pct_newsletter= ("tiene_newsletter","mean"),
 ).round(1).reset_index()
 stats_segmento["pct_newsletter"] = (stats_segmento["pct_newsletter"] * 100).round(1)
@@ -75,14 +76,16 @@ divisor()
 # Info del segmento seleccionado
 info = stats_dict.get(segmento_sel, {})
 if info:
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         kpi_card("Clientes en segmento", f"{info.get('clientes', 0):,}")
     with col2:
         kpi_card("Monto medio", f"${info.get('monto_medio', 0):,.0f}")
     with col3:
-        kpi_card("% Contactables newsletter", f"{info.get('pct_newsletter', 0):.1f}%", color=GRIS)
+        kpi_card("Monto mediano", f"${info.get('monto_mediano', 0):,.0f}")
     with col4:
+        kpi_card("% Contactables newsletter", f"{info.get('pct_newsletter', 0):.1f}%", color=GRIS)
+    with col5:
         pct_email_val = info.get("pct_email", 0)
         kpi_card(
             "% Con email disponible",
