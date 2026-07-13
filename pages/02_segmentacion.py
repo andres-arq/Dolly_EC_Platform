@@ -396,7 +396,17 @@ else:
     if df_monto.empty:
         st.info("No hay carritos con monto mayor a 0 en los segmentos seleccionados.")
     else:
-        umbral = PARAMS["ticket_umbral_flete_gratis"]
+        umbral_defecto = PARAMS["ticket_umbral_flete_gratis"]
+
+        # Slider interactivo — mueve el umbral y recalcula todo en vivo:
+        # el gráfico, el conteo de clientes bajo el umbral y la ganancia
+        # potencial de empujarlos a cruzarlo.
+        umbral = st.slider(
+            "Simular umbral de flete gratis (CLP)",
+            min_value=10_000, max_value=150_000, value=umbral_defecto, step=1_000,
+            format="$%d",
+            help="Mueve el umbral para ver cómo cambia la ganancia potencial estimada.",
+        )
 
         # Acotamos el eje a una zona donde realmente vive la decisión de negocio
         # (cerca del umbral de flete gratis) — el histograma completo hasta el
@@ -443,6 +453,43 @@ else:
         st.plotly_chart(estilizar_grafico(fig4), use_container_width=True, theme=None)
         if n_outliers > 0:
             st.caption(f"+{n_outliers:,} clientes con carrito sobre ${eje_max:,.0f} (fuera del rango visible, para no aplastar la escala).")
+
+        # ---- Calculadora de ganancia potencial ----
+        # Supuestos declarados explícitamente (editables acá, no en el código
+        # de más abajo) para que quede claro qué se está asumiendo:
+        TASA_CONVERSION_OBJETIVO = 0.03   # 3% — clientes bajo el umbral que se
+                                          # empujan a cruzarlo con una campaña
+        COSTO_DESPACHO_CLP = 5_500        # costo real de dar flete gratis por pedido
+
+        df_bajo_umbral = df_monto[df_monto["monto_carrito"] < umbral]
+        n_bajo_umbral = len(df_bajo_umbral)
+        brecha_promedio = (umbral - df_bajo_umbral["monto_carrito"]).mean() if n_bajo_umbral > 0 else 0
+        n_conversores = round(n_bajo_umbral * TASA_CONVERSION_OBJETIVO)
+        ganancia_bruta = n_conversores * brecha_promedio
+        costo_total_despacho = n_conversores * COSTO_DESPACHO_CLP
+        ganancia_neta = ganancia_bruta - costo_total_despacho
+
+        divisor(margen_top=16, margen_bottom=16)
+        st.markdown("**💰 Ganancia potencial de empujar a estos clientes sobre el umbral**")
+        st.caption(
+            f"Supuestos: {TASA_CONVERSION_OBJETIVO*100:.0f}% de conversión de campaña "
+            f"(benchmark cross-sell/recordatorio) · ${COSTO_DESPACHO_CLP:,} costo de despacho por pedido."
+        )
+
+        col_g1, col_g2, col_g3, col_g4 = st.columns(4)
+        with col_g1:
+            kpi_card("Clientes bajo el umbral", f"{n_bajo_umbral:,}", color=ROJO)
+        with col_g2:
+            kpi_card("Convertirían (3%)", f"{n_conversores:,}", color=VINO,
+                     ayuda=f"Brecha promedio: ${brecha_promedio:,.0f}")
+        with col_g3:
+            kpi_card("Ganancia bruta (GMV incremental)", f"${ganancia_bruta:,.0f}", color=NEGRO)
+        with col_g4:
+            kpi_card(
+                "Ganancia neta (− despacho)", f"${ganancia_neta:,.0f}",
+                color=ROJO if ganancia_neta < 0 else VINO,
+                ayuda=f"− ${costo_total_despacho:,.0f} en despachos gratis",
+            )
 
 divisor()
 
