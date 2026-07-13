@@ -347,15 +347,22 @@ else:
 
         col_m1, col_m2 = st.columns(2)
         with col_m1:
-            kpi_card(
-                "Con dato de abandono confiable", f"{n_ventana_vtex:,}", color=ROJO,
-                ayuda=f"Últimos 30 días (ventana real del CSV VTEX) · {n_ventana_vtex/total_validos*100:.0f}% del filtro",
-            )
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-            kpi_card(
-                "Potencial recuperable en esa ventana", f"${monto_ventana_vtex:,.0f}", color=ROJO,
-                ayuda="Suma de monto_carrito de esos clientes con dato confiable.",
-            )
+            st.markdown(f"""
+                <div style="background:{CARD}; border:0.5px solid {BORDE}; border-radius:10px;
+                            padding:18px 20px; height:100%;">
+                    <div style="font-size:28px; font-weight:700; color:{ROJO};">{n_ventana_vtex:,}</div>
+                    <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">Con dato de abandono confiable</div>
+                    <div style="font-size:11px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">
+                        Últimos 30 días (ventana real del CSV VTEX) · {n_ventana_vtex/total_validos*100:.0f}% del filtro
+                    </div>
+                    <hr style="margin:16px 0; border:none; border-top:0.5px solid {BORDE};">
+                    <div style="font-size:28px; font-weight:700; color:{ROJO};">${monto_ventana_vtex:,.0f}</div>
+                    <div style="font-size:13px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">Potencial recuperable en esa ventana</div>
+                    <div style="font-size:11px; color:{TEXTO_SECUNDARIO}; margin-top:2px;">
+                        Suma de monto_carrito de esos clientes con dato confiable.
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
         with col_m2:
             kpi_card(
                 "Activos", f"{n_activos:,}", color=NEGRO,
