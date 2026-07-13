@@ -147,7 +147,7 @@ with col2:
     kpi_card("Clientes recuperables ahora", f"{total_recuperables:,}", color=ROJO)
 
 with col3:
-    kpi_card("Monto mediano carrito (toda la base)", f"${stats['monto_mediano']:,.0f}")
+    kpi_card("Monto medio carrito (toda la base)", f"${stats['monto_medio']:,.0f}")
 
 with col4:
     kpi_card("% Contactables (newsletter)", f"{stats['pct_contactables']:.1f}%", color=GRIS)
@@ -269,19 +269,19 @@ st.subheader("Resumen por segmento")
 df_resumen = df.groupby("segmento").agg(
     clientes      = ("userId",        "count"),
     recencia_prom = ("recencia_dias",  "mean"),
-    monto_mediano = ("monto_carrito",  "median"),
+    monto_medio   = ("monto_carrito",  "mean"),
     pct_newsletter= ("tiene_newsletter","mean"),
     pct_telefono  = ("tiene_telefono", "mean"),
 ).round(1).reset_index()
 
-df_resumen["potencial_clp"]    = (df_resumen["clientes"] * df_resumen["monto_mediano"]).astype(int)
+df_resumen["potencial_clp"]    = (df_resumen["clientes"] * df_resumen["monto_medio"]).astype(int)
 df_resumen["pct_newsletter"]   = (df_resumen["pct_newsletter"] * 100).round(1)
 df_resumen["pct_telefono"]     = (df_resumen["pct_telefono"] * 100).round(1)
 df_resumen                     = df_resumen.sort_values("clientes", ascending=False)
 
 df_resumen.columns = [
     "Segmento", "Clientes", "Recencia Prom (días)",
-    "Monto Mediano", "% Newsletter", "% Teléfono", "Potencial CLP"
+    "Monto Medio", "% Newsletter", "% Teléfono", "Potencial CLP"
 ]
 
 st.dataframe(df_resumen, use_container_width=True, hide_index=True)
