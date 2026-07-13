@@ -470,25 +470,27 @@ else:
         ganancia_neta = ganancia_bruta - costo_total_despacho
 
         divisor(margen_top=16, margen_bottom=16)
-        st.markdown("**💰 Ganancia potencial de empujar a estos clientes sobre el umbral**")
+        st.markdown("**💰 Oportunidad no capturada — si empujas a estos clientes sobre el umbral**")
         st.caption(
-            f"Supuestos: {TASA_CONVERSION_OBJETIVO*100:.0f}% de conversión de campaña "
-            f"(benchmark cross-sell/recordatorio) · ${COSTO_DESPACHO_CLP:,} costo de despacho por pedido."
+            f"Esto NO es ingreso actual — es una proyección de lo que hoy se está quedando sin "
+            f"capturar, condicionada a ejecutar la campaña. Supuestos: {TASA_CONVERSION_OBJETIVO*100:.0f}% "
+            f"de conversión (benchmark cross-sell/recordatorio) · ${COSTO_DESPACHO_CLP:,} costo de despacho por pedido."
         )
 
         col_g1, col_g2, col_g3, col_g4 = st.columns(4)
         with col_g1:
             kpi_card("Clientes bajo el umbral", f"{n_bajo_umbral:,}", color=ROJO)
         with col_g2:
-            kpi_card("Convertirían (3%)", f"{n_conversores:,}", color=VINO,
+            kpi_card("Convertirían si se les empuja (3%)", f"{n_conversores:,}", color=VINO,
                      ayuda=f"Brecha promedio: ${brecha_promedio:,.0f}")
         with col_g3:
-            kpi_card("Ganancia bruta (GMV incremental)", f"${ganancia_bruta:,.0f}", color=NEGRO)
+            kpi_card("GMV sin capturar hoy (bruto)", f"${ganancia_bruta:,.0f}", color=NEGRO,
+                     ayuda="Proyectado, no realizado")
         with col_g4:
             kpi_card(
-                "Ganancia neta (− despacho)", f"${ganancia_neta:,.0f}",
+                "Oportunidad neta si conviertes (− despacho)", f"${ganancia_neta:,.0f}",
                 color=ROJO if ganancia_neta < 0 else VINO,
-                ayuda=f"− ${costo_total_despacho:,.0f} en despachos gratis",
+                ayuda=f"Proyectado, no realizado · − ${costo_total_despacho:,.0f} en despachos gratis",
             )
 
 divisor()
