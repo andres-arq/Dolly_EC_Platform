@@ -270,9 +270,7 @@ else:
         df_bins_recencia = df_bins_recencia.sort_values("mes", ascending=False).reset_index(drop=True)
 
         # Barra "espaciadora" invisible (altura 0, sin etiqueta de mes) entre
-        # cada cambio de año — corta el agrupamiento automático de Plotly ahí,
-        # dando una separación notoria pero sutil entre años sin necesitar
-        # líneas o formas adicionales.
+        # cada cambio de año — da una separación notoria pero sutil entre años.
         filas = []
         for i, fila in df_bins_recencia.iterrows():
             filas.append(fila)
@@ -284,6 +282,13 @@ else:
                 }))
         df_grafico = pd.DataFrame(filas).reset_index(drop=True)
 
+        # Posiciones numéricas fijas (0, 1, 2...) en vez de un eje de categorías
+        # — así Plotly no puede reordenar los meses por su cuenta (le pasó con
+        # el eje multicategoría: reordenaba alfabético/numérico y arruinaba la
+        # línea de tendencia). Con posiciones numéricas, el orden que armamos
+        # a mano (más reciente a la izquierda) queda garantizado.
+        df_grafico["x_pos"] = range(len(df_grafico))
+
         colores_bar = px.colors.sample_colorscale(
             ESCALA_ROJA,
             [(v - df_bins_recencia["orden"].min()) / max(df_bins_recencia["orden"].max() - df_bins_recencia["orden"].min(), 1)
@@ -292,23 +297,40 @@ else:
 
         fig3 = go.Figure()
         fig3.add_trace(go.Bar(
-            x=[df_grafico["anio"], df_grafico["mes_abrev"]],
-            y=df_grafico["clientes"],
+            x=df_grafico["x_pos"], y=df_grafico["clientes"],
             marker=dict(color=colores_bar, line=dict(color="#FFFFFF", width=1.5)),
             name="Clientes",
-            hovertemplate="%{y:,} clientes<extra></extra>",
+            hovertemplate="%{customdata}<br>%{y:,} clientes<extra></extra>",
+            customdata=[f"{m} {a}" if m else "" for m, a in zip(df_grafico["mes_abrev"], df_grafico["anio"])],
         ))
         fig3.add_trace(go.Scatter(
-            x=[df_grafico["anio"], df_grafico["mes_abrev"]],
+            x=df_grafico["x_pos"],
             y=df_grafico["clientes"].rolling(window=3, center=True, min_periods=1).mean(),
             mode="lines",
             line=dict(color=NEGRO, width=2.5, shape="spline"),
             name="Tendencia",
             hoverinfo="skip",
         ))
+
+        # Etiqueta de mes en el tick, año como anotación centrada debajo del
+        # grupo de meses que le corresponde (reemplaza el agrupamiento
+        # automático de Plotly, que no respetaba nuestro orden cronológico).
+        fig3.update_xaxes(
+            tickmode="array",
+            tickvals=df_grafico["x_pos"],
+            ticktext=df_grafico["mes_abrev"],
+        )
+        for anio_valor in [a for a in df_grafico["anio"].unique() if a]:
+            posiciones = df_grafico.loc[df_grafico["anio"] == anio_valor, "x_pos"]
+            fig3.add_annotation(
+                x=(posiciones.min() + posiciones.max()) / 2, y=-0.16, yref="paper",
+                text=f"<b>{anio_valor}</b>", showarrow=False,
+                font=dict(size=11, color=TEXTO_SECUNDARIO),
+            )
+
         fig3.update_layout(
             title="Tendencia de sesiones", bargap=0.12, showlegend=True, legend_title_text="",
-            yaxis_title="Clientes",
+            yaxis_title="Clientes", xaxis_title=None, margin=dict(b=80),
         )
         st.plotly_chart(estilizar_grafico(fig3), use_container_width=True, theme=None)
 
