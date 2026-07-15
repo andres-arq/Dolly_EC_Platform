@@ -150,6 +150,7 @@ def cargar_puntos_blueexpress():
         {"nombre": "Blue Express Copec Valdivia Centro", "ciudad": "Valdivia",     "region": "Los Ríos",     "latitud": -39.8142, "longitud": -73.2459, "estado": "Abierto 24/7"},
         {"nombre": "Blue Express Copec Temuco Centro",   "ciudad": "Temuco",       "region": "La Araucanía", "latitud": -38.7359, "longitud": -72.5904, "estado": "Abierto 24/7"},
         {"nombre": "Blue Express Copec Concepción",      "ciudad": "Concepción",   "region": "Biobío",       "latitud": -36.8270, "longitud": -73.0498, "estado": "Abierto 24/7"},
+        {"nombre": "BlueExpress Calbuco - Match real geografico", "ciudad": "Calbuco", "region": "Los Lagos", "latitud": -41.76009564259577, "longitud": -73.14336774540499, "estado": "Abierto 24/7"},
     ]
     return pd.DataFrame(puntos)
 
